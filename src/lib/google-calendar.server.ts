@@ -34,8 +34,28 @@ function calendarTimezone(): string {
   return process.env["GOOGLE_CALENDAR_TIMEZONE"]?.trim() || BOOKING_TIMEZONE;
 }
 
+function parseAccount(parsed: Partial<ServiceAccount>): ServiceAccount | null {
+  if (!parsed.client_email || !parsed.private_key) return null;
+  return {
+    client_email: parsed.client_email,
+    private_key: parsed.private_key.replace(/\\n/g, "\n"),
+  };
+}
+
 function loadCredentials(): ServiceAccount | null {
   if (credentials !== undefined) return credentials;
+
+  const inline = process.env["GOOGLE_SERVICE_ACCOUNT_JSON"]?.trim();
+  if (inline) {
+    try {
+      const parsed = parseAccount(JSON.parse(inline) as Partial<ServiceAccount>);
+      credentials = parsed;
+      if (parsed) return parsed;
+    } catch (error) {
+      console.error("[google-calendar] GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON", error);
+    }
+  }
+
   const relative = process.env["GOOGLE_SERVICE_ACCOUNT_FILE"]?.trim();
   if (!relative) {
     credentials = null;
@@ -43,14 +63,12 @@ function loadCredentials(): ServiceAccount | null {
   }
   try {
     const filePath = isAbsolute(relative) ? relative : resolve(process.cwd(), relative);
-    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as Partial<ServiceAccount>;
-    if (!parsed.client_email || !parsed.private_key) {
+    const parsed = parseAccount(JSON.parse(readFileSync(filePath, "utf8")) as Partial<ServiceAccount>);
+    credentials = parsed;
+    if (!parsed) {
       console.error("[google-calendar] service account JSON is missing client_email or private_key");
-      credentials = null;
-      return null;
     }
-    credentials = { client_email: parsed.client_email, private_key: parsed.private_key };
-    return credentials;
+    return parsed;
   } catch (error) {
     console.error("[google-calendar] failed to read service account file", error);
     credentials = null;
@@ -118,9 +136,6 @@ function occupancyFromEvent(event: CalendarEvent, timeZone: string): Occupancy |
   }
 
   if (start.dateTime && end.dateTime) {
-    // Timed events marked Free (inquiries, notes) do not hold the kit.
-    // All-day events still do — those are studio/kit-out days.
-    if (event.transparency === "transparent") return null;
     const startMs = new Date(start.dateTime).getTime();
     const endMs = new Date(end.dateTime).getTime();
     return occupancyFromWindow({ startMs, endMs, exclusive: false });

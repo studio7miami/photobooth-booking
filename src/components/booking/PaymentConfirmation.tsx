@@ -3,6 +3,7 @@ import { Check, Loader2 } from "lucide-react";
 
 import { EXPERIENCES, formatCents, type ExperienceKey } from "@/config/pricing";
 import { getBookingPaymentStatus } from "@/lib/payments.functions";
+import { EXPERIENCE_IMAGES } from "./StepExperience";
 import {
   EdCaption,
   EdCard,
@@ -13,10 +14,17 @@ import { OrderLine, formatLongDate } from "./StepPayment";
 
 type Status = Awaited<ReturnType<typeof getBookingPaymentStatus>>;
 
+const CONFIRMED: ReadonlySet<string> = new Set([
+  "deposit_paid",
+  "paid_in_full",
+  "confirmed",
+  "settled",
+  "completed",
+]);
+
 /**
- * Payment truth comes from the webhook, so we poll the booking until the
- * server confirms it rather than trusting the browser's redirect. Same card
- * anatomy as Step 5 — just its "done" state.
+ * Payment truth comes from the webhook (or a Stripe fallback on poll),
+ * so we wait for the server rather than trusting the browser redirect.
  */
 export function PaymentConfirmation({ bookingId }: { bookingId: string }) {
   const [status, setStatus] = useState<Status>(null);
@@ -32,10 +40,7 @@ export function PaymentConfirmation({ bookingId }: { bookingId: string }) {
         const next = await getBookingPaymentStatus({ data: { bookingId } });
         if (!active) return;
         setStatus(next);
-        const done =
-          next?.status === "confirmed" ||
-          next?.status === "settled" ||
-          next?.status === "completed";
+        const done = Boolean(next?.status && CONFIRMED.has(next.status));
         if (done || attempts >= 20) {
           setSettled(done);
           return;
@@ -56,10 +61,12 @@ export function PaymentConfirmation({ bookingId }: { bookingId: string }) {
   const totalCents = status?.total_cents ?? paidCents;
   const isDeposit = status?.payment_mode === "deposit";
   const dueLabel = status?.balance_due_date ? formatLongDate(status.balance_due_date) : null;
-  const experienceName =
+  const experienceKey =
     status?.experience && status.experience in EXPERIENCES
-      ? EXPERIENCES[status.experience as ExperienceKey].name
+      ? (status.experience as ExperienceKey)
       : null;
+  const experienceName = experienceKey ? EXPERIENCES[experienceKey].name : null;
+  const imageUrl = experienceKey ? EXPERIENCE_IMAGES[experienceKey].url : undefined;
 
   return (
     <EdCard>
@@ -79,21 +86,20 @@ export function PaymentConfirmation({ bookingId }: { bookingId: string }) {
           : "We're waiting for the payment confirmation from our processor. This usually takes a few seconds."}
       </p>
 
-      <div className="mt-8 border-t border-border pt-6">
-        <OrderLine
-          {...(experienceName ? { experienceName } : {})}
-          {...(status?.event_date ? { eventDate: status.event_date } : {})}
-          {...(status?.event_start_time ? { eventStartTime: status.event_start_time } : {})}
-          totalCents={totalCents}
-          done
-        />
-      </div>
-
       {status ? (
         <>
           <p className="label-caps mt-8 text-[10px] text-muted-foreground">Payment summary</p>
+          <div className="mt-4">
+            <OrderLine
+              {...(experienceName ? { experienceName } : {})}
+              {...(status.event_date ? { eventDate: status.event_date } : {})}
+              {...(status.event_start_time ? { eventStartTime: status.event_start_time } : {})}
+              {...(imageUrl ? { imageUrl } : {})}
+              totalCents={totalCents}
+              done={settled}
+            />
+          </div>
           <EdSpecs className="mt-2">
-            <EdSpec label="Booking status" value={status.status.replace(/_/g, " ")} />
             {paidCents > 0 ? (
               <EdSpec label="Amount paid" value={formatCents(paidCents)} strong />
             ) : null}

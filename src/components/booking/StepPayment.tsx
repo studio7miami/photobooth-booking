@@ -511,17 +511,20 @@ export function OrderLine({
   totalCents: number;
   done?: boolean | undefined;
 }) {
-  const when = [eventDate ? formatLongDate(eventDate) : null, eventStartTime]
+  const when = [
+    eventDate ? formatLongDate(eventDate) : null,
+    eventStartTime ? formatTime(eventStartTime.slice(0, 5)) : null,
+  ]
     .filter(Boolean)
     .join(" · ");
 
   return (
     <div className="flex items-center gap-4">
       <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-border bg-muted">
-        {done ? (
-          <Check className="size-5" aria-hidden="true" />
-        ) : imageUrl ? (
+        {imageUrl ? (
           <img src={imageUrl} alt="" className="size-full object-cover" />
+        ) : done ? (
+          <Check className="size-5" aria-hidden="true" />
         ) : (
           <Camera className="size-5 text-muted-foreground" aria-hidden="true" />
         )}

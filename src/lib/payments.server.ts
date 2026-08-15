@@ -1,6 +1,6 @@
 import { formatCents } from "@/config/pricing";
 import { canStartPayment, type BookingStatus } from "./booking-states";
-import { getAdmin, transitionBooking } from "./booking.server";
+import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
 import { isHoldActive } from "./hold";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "./stripe.server";
 
@@ -228,16 +228,134 @@ export async function startBookingPayment(args: StartArgs): Promise<
   }
 }
 
+export type PaymentFacts = {
+  bookingId: string;
+  paymentMode: "deposit" | "full" | "balance";
+  paymentIntentId: string;
+  chargeId: string | null;
+  amountCents: number;
+};
+
+/** Payment truth is set here only — never from the browser. */
+export async function applySuccessfulPayment(facts: PaymentFacts) {
+  const supabase = await getAdmin();
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, status, amount_paid_cents, stripe_payment_intent_id, balance_payment_intent_id")
+    .eq("id", facts.bookingId)
+    .maybeSingle();
+
+  if (!data) {
+    console.error("Webhook for unknown booking", facts.bookingId);
+    return;
+  }
+  const row = data as Record<string, any>;
+  const status = row["status"] as BookingStatus;
+
+  if (facts.paymentMode === "balance") {
+    if (row["balance_payment_intent_id"] === facts.paymentIntentId) return;
+    const from: BookingStatus = status === "balance_due" ? "balance_due" : "confirmed";
+    if (from !== status) return;
+    await transitionBooking({
+      bookingId: facts.bookingId,
+      from,
+      to: "settled",
+      actor: "stripe_webhook",
+      patch: {
+        balance_payment_intent_id: facts.paymentIntentId,
+        balance_status: "paid",
+        amount_paid_cents: Number(row["amount_paid_cents"] ?? 0) + facts.amountCents,
+        paid_at: new Date().toISOString(),
+      },
+      meta: { payment_intent_id: facts.paymentIntentId, amount_cents: facts.amountCents },
+    });
+    return;
+  }
+
+  if (row["stripe_payment_intent_id"] === facts.paymentIntentId && status !== "agreement_signed") {
+    return;
+  }
+  if (status !== "agreement_signed") {
+    await logBookingEvent({
+      bookingId: facts.bookingId,
+      from: status,
+      to: status,
+      actor: "stripe_webhook",
+      meta: { ignored: "payment received in non-payable state", payment_intent_id: facts.paymentIntentId },
+    });
+    return;
+  }
+
+  const paidState: BookingStatus = facts.paymentMode === "deposit" ? "deposit_paid" : "paid_in_full";
+
+  const moved = await transitionBooking({
+    bookingId: facts.bookingId,
+    from: "agreement_signed",
+    to: paidState,
+    actor: "stripe_webhook",
+    patch: {
+      stripe_payment_intent_id: facts.paymentIntentId,
+      stripe_charge_id: facts.chargeId,
+      amount_paid_cents: facts.amountCents,
+      paid_at: new Date().toISOString(),
+      payment_mode: facts.paymentMode,
+      ...(facts.paymentMode === "deposit"
+        ? { balance_status: "pending" }
+        : { balance_status: "paid", balance_cents: 0 }),
+    },
+    meta: { payment_intent_id: facts.paymentIntentId, amount_cents: facts.amountCents },
+  });
+
+  if (!moved) return;
+
+  await transitionBooking({
+    bookingId: facts.bookingId,
+    from: paidState,
+    to: "confirmed",
+    actor: "stripe_webhook",
+    meta: { payment_mode: facts.paymentMode },
+  });
+}
+
+function stripeEnvFromSecret(): StripeEnv {
+  const key = process.env["STRIPE_SECRET_KEY"]?.trim() ?? "";
+  return key.startsWith("sk_live_") ? "live" : "sandbox";
+}
+
+/** If the webhook hasn't landed yet, confirm from Stripe so test checkout still settles. */
+async function recoverPaidCheckout(bookingId: string, customerId: string | null) {
+  if (!customerId) return;
+  try {
+    const stripe = createStripeClient(stripeEnvFromSecret());
+    const intents = await stripe.paymentIntents.list({ customer: customerId, limit: 15 });
+    const paid = intents.data.find(
+      (intent) => intent.metadata?.booking_id === bookingId && intent.status === "succeeded",
+    );
+    if (!paid) return;
+    const mode = paid.metadata?.payment_mode;
+    await applySuccessfulPayment({
+      bookingId,
+      paymentMode: mode === "full" || mode === "balance" ? mode : "deposit",
+      paymentIntentId: paid.id,
+      chargeId: typeof paid.latest_charge === "string" ? paid.latest_charge : paid.latest_charge?.id ?? null,
+      amountCents: Number(paid.amount_received ?? paid.amount ?? 0),
+    });
+  } catch (error) {
+    console.error("[payments] Stripe recovery failed", error);
+  }
+}
+
 export async function readBookingPaymentStatus(bookingId: string) {
   const supabase = await getAdmin();
   const { data } = await supabase
     .from("bookings")
     .select(
-      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time",
+      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time, stripe_customer_id",
     )
     .eq("id", bookingId)
     .maybeSingle();
-  return (data ?? null) as null | {
+
+  const row = (data ?? null) as null | {
     status: BookingStatus;
     payment_mode: string | null;
     amount_paid_cents: number;
@@ -249,5 +367,34 @@ export async function readBookingPaymentStatus(bookingId: string) {
     experience: string | null;
     event_date: string | null;
     event_start_time: string | null;
+    stripe_customer_id: string | null;
   };
+
+  if (row?.status === "agreement_signed") {
+    await recoverPaidCheckout(bookingId, row.stripe_customer_id);
+    const { data: again } = await supabase
+      .from("bookings")
+      .select(
+        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time",
+      )
+      .eq("id", bookingId)
+      .maybeSingle();
+    return (again ?? null) as null | {
+      status: BookingStatus;
+      payment_mode: string | null;
+      amount_paid_cents: number;
+      balance_cents: number | null;
+      balance_due_date: string | null;
+      balance_link: string | null;
+      paid_at: string | null;
+      total_cents: number | null;
+      experience: string | null;
+      event_date: string | null;
+      event_start_time: string | null;
+    };
+  }
+
+  if (!row) return null;
+  const { stripe_customer_id: _ignored, ...rest } = row;
+  return rest;
 }

@@ -1,100 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { type StripeEnv, verifyWebhook } from "@/lib/stripe.server";
-import type { BookingStatus } from "@/lib/booking-states";
-import { getAdmin, logBookingEvent, transitionBooking } from "@/lib/booking.server";
+import { applySuccessfulPayment } from "@/lib/payments.server";
 
-type PaymentFacts = {
-  bookingId: string;
-  paymentMode: "deposit" | "full" | "balance";
-  paymentIntentId: string;
-  chargeId: string | null;
-  amountCents: number;
-};
-
-/** Payment truth is set here only — never from the browser. */
-async function applyPayment(facts: PaymentFacts) {
-  const supabase = await getAdmin();
-  const { data } = await supabase
-    .from("bookings")
-    .select("id, status, amount_paid_cents, stripe_payment_intent_id, balance_payment_intent_id")
-    .eq("id", facts.bookingId)
-    .maybeSingle();
-
-  if (!data) {
-    console.error("Webhook for unknown booking", facts.bookingId);
-    return;
-  }
-  const row = data as Record<string, any>;
-  const status = row["status"] as BookingStatus;
-
-  if (facts.paymentMode === "balance") {
-    // Idempotent: the same intent applied twice is a no-op.
-    if (row["balance_payment_intent_id"] === facts.paymentIntentId) return;
-    const from: BookingStatus = status === "balance_due" ? "balance_due" : "confirmed";
-    if (from !== status) return;
-    await transitionBooking({
-      bookingId: facts.bookingId,
-      from,
-      to: "settled",
-      actor: "stripe_webhook",
-      patch: {
-        balance_payment_intent_id: facts.paymentIntentId,
-        balance_status: "paid",
-        amount_paid_cents: Number(row["amount_paid_cents"] ?? 0) + facts.amountCents,
-        paid_at: new Date().toISOString(),
-      },
-      meta: { payment_intent_id: facts.paymentIntentId, amount_cents: facts.amountCents },
-    });
-    return;
-  }
-
-  if (row["stripe_payment_intent_id"] === facts.paymentIntentId && status !== "agreement_signed") {
-    return; // already applied
-  }
-  if (status !== "agreement_signed") {
-    await logBookingEvent({
-      bookingId: facts.bookingId,
-      from: status,
-      to: status,
-      actor: "stripe_webhook",
-      meta: { ignored: "payment received in non-payable state", payment_intent_id: facts.paymentIntentId },
-    });
-    return;
-  }
-
-  const paidState: BookingStatus = facts.paymentMode === "deposit" ? "deposit_paid" : "paid_in_full";
-
-  const moved = await transitionBooking({
-    bookingId: facts.bookingId,
-    from: "agreement_signed",
-    to: paidState,
-    actor: "stripe_webhook",
-    patch: {
-      stripe_payment_intent_id: facts.paymentIntentId,
-      stripe_charge_id: facts.chargeId,
-      amount_paid_cents: facts.amountCents,
-      paid_at: new Date().toISOString(),
-      payment_mode: facts.paymentMode,
-      ...(facts.paymentMode === "deposit"
-        ? { balance_status: "pending" }
-        : { balance_status: "paid", balance_cents: 0 }),
-    },
-    meta: { payment_intent_id: facts.paymentIntentId, amount_cents: facts.amountCents },
-  });
-
-  if (!moved) return;
-
-  await transitionBooking({
-    bookingId: facts.bookingId,
-    from: paidState,
-    to: "confirmed",
-    actor: "stripe_webhook",
-    meta: { payment_mode: facts.paymentMode },
-  });
-}
-
-function factsFromPaymentIntent(pi: any): PaymentFacts | null {
+function factsFromPaymentIntent(pi: {
+  id: string;
+  metadata?: { booking_id?: string; payment_mode?: string };
+  latest_charge?: string | { id?: string } | null;
+  amount_received?: number;
+  amount?: number;
+}) {
   const bookingId = pi?.metadata?.booking_id;
   if (!bookingId) return null;
   const mode = pi?.metadata?.payment_mode;
@@ -104,7 +19,10 @@ function factsFromPaymentIntent(pi: any): PaymentFacts | null {
       : (pi?.latest_charge?.id ?? null);
   return {
     bookingId,
-    paymentMode: mode === "full" || mode === "balance" ? mode : "deposit",
+    paymentMode: (mode === "full" || mode === "balance" ? mode : "deposit") as
+      | "deposit"
+      | "full"
+      | "balance",
     paymentIntentId: pi.id,
     chargeId: charge,
     amountCents: Number(pi.amount_received ?? pi.amount ?? 0),
@@ -117,16 +35,22 @@ async function handleWebhook(req: Request, env: StripeEnv) {
   switch (event.type) {
     case "payment_intent.succeeded": {
       const facts = factsFromPaymentIntent(event.data.object);
-      if (facts) await applyPayment(facts);
+      if (facts) await applySuccessfulPayment(facts);
       break;
     }
     case "checkout.session.completed": {
-      const session = event.data.object;
+      const session = event.data.object as {
+        payment_status?: string;
+        metadata?: { booking_id?: string; payment_mode?: string };
+        payment_intent?: string | { id?: string };
+        amount_total?: number;
+        id: string;
+      };
       if (session.payment_status === "unpaid") break;
       const bookingId = session?.metadata?.booking_id;
       if (!bookingId) break;
       const mode = session?.metadata?.payment_mode;
-      await applyPayment({
+      await applySuccessfulPayment({
         bookingId,
         paymentMode: mode === "full" || mode === "balance" ? mode : "deposit",
         paymentIntentId:
