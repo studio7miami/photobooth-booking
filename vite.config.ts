@@ -6,7 +6,11 @@ import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+const hostedAtPhotobooth = process.env.VERCEL === "1";
+const base = hostedAtPhotobooth ? "/photobooth/" : "/";
+
 export default defineConfig({
+  base,
   server: {
     host: true,
     port: 8080,
@@ -30,8 +34,11 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart(
+      hostedAtPhotobooth ? { router: { basepath: "/photobooth" } } : undefined,
+    ),
     nitro({
+      ...(hostedAtPhotobooth ? { baseURL: "/photobooth" } : {}),
       rolldownConfig: {
         output: {
           inlineDynamicImports: true,

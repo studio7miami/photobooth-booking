@@ -14,7 +14,7 @@ import { getStripe, getStripeEnvironment } from "@/lib/stripe";
 import { createBookingPayment } from "@/lib/payments.functions";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
-import { cn } from "@/lib/utils";
+import { publicUrl } from "@/lib/public-base";
 import {
   EdCaption,
   EdCard,
@@ -57,7 +57,7 @@ function daysUntil(date: string): number {
 }
 
 function returnUrlFor(bookingId: string): string {
-  return `${window.location.origin}/?booking=${bookingId}&paid=1`;
+  return `${window.location.origin}${publicUrl("/")}?booking=${bookingId}&paid=1`;
 }
 
 /** Hairline fields on the pay sheet — Stripe still owns the inputs. */

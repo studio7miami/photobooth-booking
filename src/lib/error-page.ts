@@ -1,7 +1,10 @@
+import { publicUrl } from "./public-base";
+
 export function renderErrorPage(detail?: string): string {
   const comment = detail
     ? `<!-- ${detail.replace(/--/g, "—").slice(0, 4000)} -->\n`
     : "";
+  const home = publicUrl("/");
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -25,7 +28,7 @@ export function renderErrorPage(detail?: string): string {
       <p>Something went wrong on our end. You can try refreshing or head back home.</p>
       <div class="actions">
         <button class="primary" onclick="location.reload()">Try again</button>
-        <a class="secondary" href="/">Go home</a>
+        <a class="secondary" href="${home}">Go home</a>
       </div>
     </div>
   </body>
