@@ -381,7 +381,7 @@ export function BookingFlow() {
             <SignedReceipt record={signed} />
             <StepPayment
               bookingId={signed.booking_id}
-              {...(values.experience
+              {...(values.experience && EXPERIENCES[values.experience]
                 ? {
                     experienceName: EXPERIENCES[values.experience].name,
                     imageUrl: EXPERIENCE_IMAGES[values.experience].url,

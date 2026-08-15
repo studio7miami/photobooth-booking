@@ -12,6 +12,8 @@ import { type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
 import { publicUrl } from "@/lib/public-base";
+import { getPaymentsBrowserConfig } from "@/lib/payments.functions";
+import { setPaymentsClientToken } from "@/lib/stripe";
 
 
 function NotFoundComponent() {
@@ -49,6 +51,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
+        {error?.message ? (
+          <p className="mt-3 break-words text-xs text-muted-foreground">{error.message}</p>
+        ) : null}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
@@ -72,6 +77,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  loader: async () => {
+    try {
+      return await getPaymentsBrowserConfig();
+    } catch {
+      return { publishableKey: "" };
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -121,6 +133,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const payments = Route.useLoaderData();
+  setPaymentsClientToken(payments?.publishableKey);
 
   return (
     <QueryClientProvider client={queryClient}>

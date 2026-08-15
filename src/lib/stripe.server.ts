@@ -8,6 +8,13 @@ const getEnv = (key: string): string => {
 
 export type StripeEnv = "sandbox" | "live";
 
+/** Publishable key for Checkout.js. Safe to send to the browser. */
+export function getStripePublishableKey(): string | undefined {
+  const token = process.env["VITE_PAYMENTS_CLIENT_TOKEN"]?.trim();
+  if (token?.startsWith("pk_test_") || token?.startsWith("pk_live_")) return token;
+  return undefined;
+}
+
 export function getStripeSecretKey(env: StripeEnv): string {
   if (env === "sandbox") {
     return getEnv("STRIPE_SECRET_KEY");

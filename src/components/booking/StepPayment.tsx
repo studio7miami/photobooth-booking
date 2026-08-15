@@ -10,7 +10,7 @@ import type { StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js
 import { Camera, Check, Loader2, X } from "lucide-react";
 
 import { formatCents } from "@/config/pricing";
-import { getStripe, getStripeEnvironment } from "@/lib/stripe";
+import { getStripe, getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { createBookingPayment } from "@/lib/payments.functions";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
@@ -152,6 +152,9 @@ export function StepPayment({
     .join(" · ");
 
   const fetchClientSecret = useCallback(async () => {
+    if (!isPaymentsConfigured()) {
+      throw new Error("Payments are not configured.");
+    }
     const result = await createBookingPayment({
       data: {
         bookingId,
@@ -169,10 +172,13 @@ export function StepPayment({
 
   // Stripe.js + Checkout Session start together; the provider accepts the
   // promise so Elements can init without waiting for the secret string.
-  const clientSecret = useMemo(() => fetchClientSecret(), [fetchClientSecret]);
+  const clientSecret = useMemo(
+    () => (isPaymentsConfigured() ? fetchClientSecret() : Promise.resolve("")),
+    [fetchClientSecret],
+  );
 
   useEffect(() => {
-    void getStripe();
+    if (isPaymentsConfigured()) void getStripe();
   }, []);
 
   useEffect(() => {
@@ -334,24 +340,30 @@ export function StepPayment({
         </p>
 
         <div className="px-6 py-6 sm:px-7">
-          <CheckoutElementsProvider
-            key={effectiveMode}
-            stripe={getStripe()}
-            options={{
-              clientSecret,
-              elementsOptions: {
-                appearance: PAY_SHEET_APPEARANCE,
-                savedPaymentMethod: { enableSave: "never" },
-              },
-            }}
-          >
-            <PaySheetForm
-              bookingId={bookingId}
-              chargeCents={chargeCents}
-              error={error}
-              onError={setError}
-            />
-          </CheckoutElementsProvider>
+          {isPaymentsConfigured() ? (
+            <CheckoutElementsProvider
+              key={effectiveMode}
+              stripe={getStripe()}
+              options={{
+                clientSecret,
+                elementsOptions: {
+                  appearance: PAY_SHEET_APPEARANCE,
+                  savedPaymentMethod: { enableSave: "never" },
+                },
+              }}
+            >
+              <PaySheetForm
+                bookingId={bookingId}
+                chargeCents={chargeCents}
+                error={error}
+                onError={setError}
+              />
+            </CheckoutElementsProvider>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Checkout is not configured on this deployment yet.
+            </p>
+          )}
         </div>
       </div>
     </div>

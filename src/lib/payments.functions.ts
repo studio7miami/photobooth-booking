@@ -10,6 +10,12 @@ const inputSchema = z.object({
 
 export type CreateBookingPaymentResult = { clientSecret: string } | { error: string };
 
+/** Runtime publishable key — Vite only inlines `VITE_*` at build time. */
+export const getPaymentsBrowserConfig = createServerFn({ method: "GET" }).handler(async () => {
+  const { getStripePublishableKey } = await import("./stripe.server");
+  return { publishableKey: getStripePublishableKey() ?? "" };
+});
+
 /**
  * Creates the checkout session for the server-computed amount. Amounts are
  * read from the booking row — never from the browser — and payment is
