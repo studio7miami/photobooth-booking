@@ -22,11 +22,13 @@ export function StepTime({
   values,
   errors,
   onChange,
+  excludeBookingId,
 }: {
   experience: ExperienceKey;
   values: TimeValues;
   errors: Record<string, string | undefined>;
   onChange: (patch: TimeValues) => void;
+  excludeBookingId?: string | undefined;
 }) {
   const [dateOpen, setDateOpen] = React.useState(false);
   const [timeOpen, setTimeOpen] = React.useState(false);
@@ -51,17 +53,24 @@ export function StepTime({
 
   React.useEffect(() => {
     let active = true;
-    void loadOccupancy({ data: {} })
-      .then((rows) => {
-        if (active) setOccupancy(rows);
+    const load = () => {
+      void loadOccupancy({
+        data: excludeBookingId ? { excludeBookingId } : {},
       })
-      .catch(() => {
-        if (active) setOccupancy([]);
-      });
+        .then((rows) => {
+          if (active) setOccupancy(rows);
+        })
+        .catch(() => {
+          if (active) setOccupancy([]);
+        });
+    };
+    load();
+    const id = window.setInterval(load, 20_000);
     return () => {
       active = false;
+      window.clearInterval(id);
     };
-  }, [loadOccupancy]);
+  }, [loadOccupancy, excludeBookingId]);
 
   React.useEffect(() => {
     if (!values.eventDate) return;

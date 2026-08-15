@@ -6,6 +6,7 @@ import {
   type PriceBreakdown,
 } from "@/config/pricing";
 import { formatAddressLines } from "@/lib/format-display";
+import { HoldTimer } from "./HoldTimer";
 import { PriceSummary } from "./PriceSummary";
 import { PillButton } from "./StepShell";
 
@@ -21,6 +22,8 @@ export function EventGlance({
   disabled,
   cta = "Continue",
   compact = false,
+  holdSignedAt,
+  onHoldExpired,
 }: {
   experience?: ExperienceKey | undefined;
   eventDate?: string | undefined;
@@ -34,6 +37,8 @@ export function EventGlance({
   disabled?: boolean;
   cta?: string;
   compact?: boolean;
+  holdSignedAt?: string | undefined;
+  onHoldExpired?: (() => void) | undefined;
 }) {
   const tier = experience ? EXPERIENCES[experience] : null;
   const hours = tier ? (durationHours ?? tier.baseHours) : null;
@@ -57,6 +62,9 @@ export function EventGlance({
         <PillButton onClick={onContinue} disabled={disabled}>
           {cta}
         </PillButton>
+        {holdSignedAt ? (
+          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
+        ) : null}
       </div>
     );
   }
@@ -117,6 +125,11 @@ export function EventGlance({
           {cta}
         </PillButton>
       </div>
+      {holdSignedAt ? (
+        <div className="mt-3">
+          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
+        </div>
+      ) : null}
     </div>
   );
 }

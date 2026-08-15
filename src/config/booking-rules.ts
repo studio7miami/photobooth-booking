@@ -5,9 +5,11 @@ export const MAX_RENTALS_PER_DAY = 2;
 export const BUFFER_HOURS = 3;
 export const BOOKING_TIMEZONE = "America/New_York";
 
-/** Signed (and later) rows hold inventory. Unsigned drafts do not. */
-export const HOLDING_STATUSES = [
-  "agreement_signed",
+/** Unpaid signatures hold the slot this long. After that the time opens again. */
+export const HOLD_MINUTES = 10;
+
+/** Paid (signed + paid) rows keep the slot. Unpaid signatures are a timed hold. */
+export const CONFIRMED_STATUSES = [
   "deposit_paid",
   "paid_in_full",
   "confirmed",

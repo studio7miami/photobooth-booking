@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
@@ -18,6 +18,7 @@ import {
 import { finalizeSignatureSchema } from "@/lib/agreement-schema";
 import { finalizeSignature } from "@/lib/agreement.functions";
 import { clearDraft, loadDraft, saveDraft, type StoredSigned } from "@/lib/booking-draft";
+import { isHoldActive } from "@/lib/hold";
 import { getStripe } from "@/lib/stripe";
 import { StepShell } from "./StepShell";
 import { EXPERIENCE_IMAGES, StepExperience } from "./StepExperience";
@@ -94,7 +95,7 @@ export function BookingFlow() {
         delete v.experience;
       }
       setValues(v);
-      if (draft.signed?.booking_id) {
+      if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
         setSigned(draft.signed);
         setStep(5);
       } else {
@@ -119,9 +120,17 @@ export function BookingFlow() {
     }
   }, [resumed]);
 
+  const releaseHold = useCallback(() => {
+    setSigned(null);
+    toast("Your 10-minute hold ended. Sign again to reserve this time.");
+  }, []);
+
   const patch = (p: BookingDraft) => {
     setValues((v) => ({ ...v, ...p }));
     setErrors({});
+    if (signed) {
+      setSigned(null);
+    }
   };
 
   const price = useMemo(() => {
@@ -202,6 +211,11 @@ export function BookingFlow() {
 
   function validateAndAdvance() {
     if (step === SIGN_STEP) {
+      if (signed) {
+        setStep(5);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
       void submitSignature();
       return;
     }
@@ -268,7 +282,7 @@ export function BookingFlow() {
         : step === 3
           ? !addressLoading
           : step === 4
-            ? !submitting && !signed
+            ? !submitting
             : step === 5
               ? false
               : true;
@@ -281,6 +295,7 @@ export function BookingFlow() {
     stationCount: values.stationCount,
     ...(step >= 4 && values.eventLocation ? { eventLocation: values.eventLocation } : {}),
     ...(price ? { price } : {}),
+    ...(signed ? { holdSignedAt: signed.signed_at, onHoldExpired: releaseHold } : {}),
     onContinue: validateAndAdvance,
     disabled: !canAdvance,
     cta:
@@ -290,7 +305,7 @@ export function BookingFlow() {
           ? "Continue to review & sign"
           : step === 4
             ? signed
-              ? "Signed"
+              ? "Continue to payment"
               : submitting
                 ? "Signing…"
                 : "Sign & continue"
@@ -302,7 +317,7 @@ export function BookingFlow() {
       step={step}
       title={copy.title}
       supporting={copy.supporting}
-      {...(step > 1 && !signed
+      {...(step > 1
         ? {
             onBack: () => {
               setErrors({});
@@ -332,6 +347,7 @@ export function BookingFlow() {
           values={values}
           errors={errors}
           onChange={patch}
+          {...(signed?.booking_id ? { excludeBookingId: signed.booking_id } : {})}
         />
       ) : null}
 

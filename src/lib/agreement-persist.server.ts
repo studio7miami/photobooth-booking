@@ -2,8 +2,9 @@ import { calculatePrice } from "@/config/pricing";
 import { formatEmail } from "./format-display";
 import type { BookingDetails } from "./booking-schema";
 import type { SignatureRecord } from "./agreement.server";
-import { assertSlotAvailable } from "./availability.server";
-import { getAdmin, logBookingEvent } from "./booking.server";
+import { assertSlotAvailable, expireStaleHolds } from "./availability.server";
+import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
+import { isHoldActive } from "./hold";
 
 function hhmm(value: string | null | undefined): string | null {
   const raw = value?.trim();
@@ -17,7 +18,7 @@ async function findOpenHold(
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, event_start_time")
+    .select("id, event_start_time, signed_at")
     .eq("event_date", booking.eventDate)
     .eq("status", "agreement_signed")
     .ilike("client_email", formatEmail(booking.clientEmail))
@@ -25,8 +26,34 @@ async function findOpenHold(
 
   if (error || !data) return null;
   const start = hhmm(booking.eventStartTime);
-  const match = data.find((row) => hhmm(row.event_start_time as string | null) === start);
+  const match = data.find(
+    (row) =>
+      hhmm(row.event_start_time as string | null) === start &&
+      isHoldActive(row.signed_at as string | null),
+  );
   return match ? String(match.id) : null;
+}
+
+async function expireOtherHolds(
+  supabase: Awaited<ReturnType<typeof getAdmin>>,
+  email: string,
+  keepId: string,
+) {
+  const { data } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("status", "agreement_signed")
+    .ilike("client_email", email)
+    .neq("id", keepId);
+  for (const row of data ?? []) {
+    await transitionBooking({
+      bookingId: String((row as { id: string }).id),
+      from: "agreement_signed",
+      to: "expired",
+      actor: "client",
+      meta: { reason: "replaced_by_new_hold" },
+    });
+  }
 }
 
 /**
@@ -41,6 +68,7 @@ export async function persistSignedBooking(
   record: SignatureRecord,
 ): Promise<string> {
   const supabase = await getAdmin();
+  await expireStaleHolds();
   const existingId = await findOpenHold(supabase, booking);
   if (existingId) {
     await supabase
@@ -55,6 +83,7 @@ export async function persistSignedBooking(
         agreement_content_hash: record.agreement_content_hash,
       } as never)
       .eq("id", existingId);
+    await expireOtherHolds(supabase, formatEmail(booking.clientEmail), existingId);
     return existingId;
   }
 
@@ -112,6 +141,7 @@ export async function persistSignedBooking(
 
   if (error || !data) throw error ?? new Error("Could not save booking");
   const bookingId = (data as { id: string }).id;
+  await expireOtherHolds(supabase, formatEmail(booking.clientEmail), bookingId);
 
   await logBookingEvent({
     bookingId,

@@ -1,6 +1,7 @@
 import { formatCents } from "@/config/pricing";
 import { canStartPayment, type BookingStatus } from "./booking-states";
-import { getAdmin } from "./booking.server";
+import { getAdmin, transitionBooking } from "./booking.server";
+import { isHoldActive } from "./hold";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "./stripe.server";
 
 type StartArgs = {
@@ -112,6 +113,17 @@ export async function startBookingPayment(args: StartArgs): Promise<
 
   if (!canStartPayment(row["status"] as BookingStatus)) {
     return { error: "Payment unlocks once the agreement is signed." };
+  }
+
+  if (!isHoldActive(row["signed_at"] as string | null)) {
+    await transitionBooking({
+      bookingId: args.bookingId,
+      from: "agreement_signed",
+      to: "expired",
+      actor: "system",
+      meta: { reason: "hold_expired" },
+    });
+    return { error: "Your 10-minute hold ended. Go back and sign again to reserve this time." };
   }
 
   const totalCents = Number(row["total_cents"] ?? 0);

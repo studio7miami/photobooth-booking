@@ -1,5 +1,5 @@
 import { EXPERIENCES, type ExperienceKey } from "@/config/pricing";
-import { HOLDING_STATUSES } from "@/config/booking-rules";
+import { CONFIRMED_STATUSES } from "@/config/booking-rules";
 import {
   isSlotOpen,
   occupancyFromWindow,
@@ -7,7 +7,8 @@ import {
   SLOT_UNAVAILABLE_MESSAGE,
   type Occupancy,
 } from "./availability";
-import { getAdmin } from "./booking.server";
+import { getAdmin, transitionBooking } from "./booking.server";
+import { holdCutoffIso, isHoldActive } from "./hold";
 
 function hhmm(value: string | null | undefined): string | null {
   const raw = value?.trim();
@@ -15,38 +16,84 @@ function hhmm(value: string | null | undefined): string | null {
   return raw.slice(0, 5);
 }
 
-async function listBookingOccupancy(): Promise<Occupancy[]> {
+type OccupancyRow = {
+  id?: string;
+  event_date: string | null;
+  event_start_time: string | null;
+  duration_hours: number | null;
+  experience: string | null;
+  status?: string | null;
+  signed_at?: string | null;
+};
+
+function rowToOccupancy(row: OccupancyRow): Occupancy | null {
+  const date = row.event_date;
+  if (!date) return null;
+  const experience = (row.experience as ExperienceKey | null) ?? "classic";
+  const exclusive = experience === "luxe";
+  const startTime = hhmm(row.event_start_time);
+  const duration = Number(row.duration_hours) || EXPERIENCES[experience]?.baseHours || 2;
+
+  if (!startTime) {
+    const startMs = wallTimeToUtcMs(date, "00:00");
+    const endMs = wallTimeToUtcMs(date, "00:00") + 24 * 60 * 60 * 1000;
+    return occupancyFromWindow({ startMs, endMs, exclusive: true });
+  }
+
+  const startMs = wallTimeToUtcMs(date, startTime);
+  const endMs = startMs + duration * 60 * 60 * 1000;
+  return occupancyFromWindow({ startMs, endMs, exclusive });
+}
+
+export async function expireStaleHolds(): Promise<void> {
   try {
     const supabase = await getAdmin();
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("event_date, event_start_time, duration_hours, experience")
-      .not("event_date", "is", null)
-      .in("status", [...HOLDING_STATUSES]);
+    const cutoff = holdCutoffIso();
+    const [{ data: timedOut }, { data: unsigned }] = await Promise.all([
+      supabase.from("bookings").select("id").eq("status", "agreement_signed").lt("signed_at", cutoff),
+      supabase.from("bookings").select("id").eq("status", "agreement_signed").is("signed_at", null),
+    ]);
 
-    if (error || !data) return [];
+    const ids = [...(timedOut ?? []), ...(unsigned ?? [])].map((row) => String((row as { id: string }).id));
+    for (const bookingId of ids) {
+      await transitionBooking({
+        bookingId,
+        from: "agreement_signed",
+        to: "expired",
+        actor: "system",
+        meta: { reason: "hold_expired" },
+      });
+    }
+  } catch (error) {
+    console.error("[availability] Failed to expire stale holds", error);
+  }
+}
+
+async function listBookingOccupancy(excludeBookingId?: string): Promise<Occupancy[]> {
+  try {
+    await expireStaleHolds();
+    const supabase = await getAdmin();
+    const cutoff = holdCutoffIso();
+    const select =
+      "id, event_date, event_start_time, duration_hours, experience, status, signed_at";
+    const [{ data: confirmed }, { data: holds, error }] = await Promise.all([
+      supabase.from("bookings").select(select).not("event_date", "is", null).in("status", [...CONFIRMED_STATUSES]),
+      supabase
+        .from("bookings")
+        .select(select)
+        .not("event_date", "is", null)
+        .eq("status", "agreement_signed")
+        .gte("signed_at", cutoff),
+    ]);
+
+    if (error) return [];
 
     const out: Occupancy[] = [];
-    for (const row of data) {
-      const date = row.event_date as string | null;
-      if (!date) continue;
-      const experience = (row.experience as ExperienceKey | null) ?? "classic";
-      const exclusive = experience === "luxe";
-      const startTime = hhmm(row.event_start_time as string | null);
-      const duration =
-        Number(row.duration_hours) || EXPERIENCES[experience]?.baseHours || 2;
-
-      if (!startTime) {
-        const startMs = wallTimeToUtcMs(date, "00:00");
-        const endMs = wallTimeToUtcMs(date, "00:00") + 24 * 60 * 60 * 1000;
-        const occupancy = occupancyFromWindow({ startMs, endMs, exclusive: true });
-        if (occupancy) out.push(occupancy);
-        continue;
-      }
-
-      const startMs = wallTimeToUtcMs(date, startTime);
-      const endMs = startMs + duration * 60 * 60 * 1000;
-      const occupancy = occupancyFromWindow({ startMs, endMs, exclusive });
+    for (const raw of [...(confirmed ?? []), ...(holds ?? [])]) {
+      const row = raw as OccupancyRow;
+      if (excludeBookingId && row.id === excludeBookingId) continue;
+      if (row.status === "agreement_signed" && !isHoldActive(row.signed_at)) continue;
+      const occupancy = rowToOccupancy(row);
       if (occupancy) out.push(occupancy);
     }
     return out;
@@ -55,8 +102,8 @@ async function listBookingOccupancy(): Promise<Occupancy[]> {
   }
 }
 
-export async function listOccupancy(): Promise<Occupancy[]> {
-  const fromBookings = await listBookingOccupancy();
+export async function listOccupancy(args?: { excludeBookingId?: string }): Promise<Occupancy[]> {
+  const fromBookings = await listBookingOccupancy(args?.excludeBookingId);
   let fromGoogle: Occupancy[] = [];
   try {
     const { listGoogleOccupancy } = await import("./google-calendar.server");
@@ -72,8 +119,11 @@ export async function assertSlotAvailable(args: {
   eventStartTime: string;
   durationHours: number;
   experience: ExperienceKey;
+  excludeBookingId?: string;
 }): Promise<void> {
-  const items = await listOccupancy();
+  const items = await listOccupancy(
+    args.excludeBookingId ? { excludeBookingId: args.excludeBookingId } : undefined,
+  );
   if (
     !isSlotOpen(items, args.eventDate, args.eventStartTime, {
       experience: args.experience,
