@@ -33,7 +33,7 @@ export default defineConfig({
     tanstackStart({
       server: { entry: "server" },
     }),
-    nitro({ defaultPreset: "node-server" }),
+    nitro(),
     viteReact(),
   ],
 });
