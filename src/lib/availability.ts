@@ -1,7 +1,8 @@
 import {
-  BUFFER_HOURS,
   BOOKING_TIMEZONE,
+  BREAKDOWN_HOURS,
   MAX_RENTALS_PER_DAY,
+  SETUP_HOURS,
   TIME_SLOTS,
 } from "@/config/booking-rules";
 import type { ExperienceKey } from "@/config/pricing";
@@ -82,17 +83,25 @@ export function occupancyOnDate(items: Occupancy[], date: string): Occupancy[] {
   return items.filter((item) => item.dates.includes(date));
 }
 
-function bufferMs(): number {
-  return BUFFER_HOURS * 60 * 60 * 1000;
+function padMs(hours: number): number {
+  return hours * 60 * 60 * 1000;
 }
 
-/** True when the new booth window sits at least BUFFER_HOURS from every hold. */
+/**
+ * Kit on site from one hour before start through one hour after end.
+ * Two bookings fit only when those windows do not overlap.
+ */
 export function windowFits(startMs: number, endMs: number, holds: Occupancy[]): boolean {
   if (!(endMs > startMs)) return false;
-  const gap = bufferMs();
+  const setup = padMs(SETUP_HOURS);
+  const breakdown = padMs(BREAKDOWN_HOURS);
+  const nextStart = startMs - setup;
+  const nextEnd = endMs + breakdown;
   return holds.every((hold) => {
     if (hold.exclusive) return false;
-    return endMs + gap <= hold.startMs || hold.endMs + gap <= startMs;
+    const holdStart = hold.startMs - setup;
+    const holdEnd = hold.endMs + breakdown;
+    return nextEnd <= holdStart || holdEnd <= nextStart;
   });
 }
 

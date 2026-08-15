@@ -318,8 +318,12 @@ export async function applySuccessfulPayment(facts: PaymentFacts) {
 }
 
 function stripeEnvFromSecret(): StripeEnv {
+  const publishable = process.env["VITE_PAYMENTS_CLIENT_TOKEN"]?.trim() ?? "";
+  if (publishable.startsWith("pk_live_")) return "live";
+  const live = process.env["STRIPE_LIVE_SECRET_KEY"]?.trim() ?? "";
+  if (live.startsWith("sk_live_") || live.startsWith("rk_live_")) return "live";
   const key = process.env["STRIPE_SECRET_KEY"]?.trim() ?? "";
-  return key.startsWith("sk_live_") ? "live" : "sandbox";
+  return key.startsWith("sk_live_") || key.startsWith("rk_live_") ? "live" : "sandbox";
 }
 
 /** If the webhook hasn't landed yet, confirm from Stripe so test checkout still settles. */

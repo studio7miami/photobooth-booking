@@ -1,8 +1,15 @@
 /** One photobooth kit. Rules for public rental availability. */
 export const KIT_COUNT = 1;
 export const MAX_RENTALS_PER_DAY = 2;
-/** Empty kit time required between the end of one rental and the start of the next. */
-export const BUFFER_HOURS = 3;
+/** Load-in before the booked start. */
+export const SETUP_HOURS = 1;
+/** Unload after the booked end. */
+export const BREAKDOWN_HOURS = 1;
+/**
+ * Timed Google Calendar events shorter than a Classic rental still occupy
+ * a full kit window, so a 5:00 PM meeting is treated as 5:00–7:00.
+ */
+export const MIN_CALENDAR_HOLD_HOURS = 2;
 export const BOOKING_TIMEZONE = "America/New_York";
 
 /** Unpaid signatures hold the slot this long. After that the time opens again. */

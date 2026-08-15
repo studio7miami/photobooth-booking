@@ -2,7 +2,7 @@ import { createSign } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 
-import { BOOKING_TIMEZONE } from "@/config/booking-rules";
+import { BOOKING_TIMEZONE, MIN_CALENDAR_HOLD_HOURS } from "@/config/booking-rules";
 import { occupancyFromWindow, wallTimeToUtcMs, type Occupancy } from "./availability";
 
 type ServiceAccount = {
@@ -137,7 +137,9 @@ function occupancyFromEvent(event: CalendarEvent, timeZone: string): Occupancy |
 
   if (start.dateTime && end.dateTime) {
     const startMs = new Date(start.dateTime).getTime();
-    const endMs = new Date(end.dateTime).getTime();
+    let endMs = new Date(end.dateTime).getTime();
+    const minEnd = startMs + MIN_CALENDAR_HOLD_HOURS * 60 * 60 * 1000;
+    if (endMs < minEnd) endMs = minEnd;
     return occupancyFromWindow({ startMs, endMs, exclusive: false });
   }
 
