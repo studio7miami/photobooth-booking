@@ -15,6 +15,7 @@ import { createBookingPayment } from "@/lib/payments.functions";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
 import { publicUrl } from "@/lib/public-base";
+import { cn } from "@/lib/utils";
 import {
   EdCaption,
   EdCard,
