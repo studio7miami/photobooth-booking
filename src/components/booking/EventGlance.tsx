@@ -1,10 +1,11 @@
+import type { ReactNode } from "react";
 import {
   EXPERIENCES,
   formatCents,
   type ExperienceKey,
   type PriceBreakdown,
 } from "@/config/pricing";
-import { formatAddress } from "@/lib/format-display";
+import { formatAddressLines } from "@/lib/format-display";
 import { PriceSummary } from "./PriceSummary";
 import { PillButton } from "./StepShell";
 
@@ -81,7 +82,20 @@ export function EventGlance({
         {tier?.perStation && stationCount ? (
           <Row label="Stations" value={String(stationCount)} />
         ) : null}
-        {eventLocation ? <Row label="Location" value={formatAddress(eventLocation)} /> : null}
+        {eventLocation ? (
+          <Row
+            label="Location"
+            value={
+              <span className="block">
+                {formatAddressLines(eventLocation).map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </span>
+            }
+          />
+        ) : null}
       </dl>
 
       {price && !tier?.custom ? (
@@ -107,10 +121,18 @@ export function EventGlance({
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Row({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: ReactNode;
+  strong?: boolean;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border pb-3 last:border-0 last:pb-0">
-      <dt className="label-caps text-[10px] text-muted-foreground">{label}</dt>
+    <div className="flex items-start justify-between gap-4 border-b border-border pb-3 last:border-0 last:pb-0">
+      <dt className="label-caps shrink-0 text-[10px] text-muted-foreground">{label}</dt>
       <dd className={strong ? "text-base font-semibold tabular-nums text-right" : "tabular-nums text-right"}>
         {value}
       </dd>
