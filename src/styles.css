@@ -1,0 +1,256 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/Manrope-VariableFont_wght.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Studio 7 Miami — editorial Miami hospitality meets tactile soft-interface luxury.
+ *
+ * Palette: warm white, ink black, soft stone, restrained gray.
+ * Electric ring-light blue is a contextual accent only (selected states,
+ * active progress, booth image glow) — never a page-wide gradient.
+ */
+
+@theme inline {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 6px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 6px);
+  --radius-3xl: calc(var(--radius) + 10px);
+  --radius-4xl: calc(var(--radius) + 14px);
+  --color-background: var(--background);
+
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-booth: var(--booth);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 1.375rem; /* 22px cards */
+  --background: oklch(0.972 0.0018 106); /* #F7F7F5 */
+  --foreground: oklch(0.185 0 0); /* #111111 */
+  --card: oklch(0.988 0.0018 106); /* #FCFCFA */
+  --card-foreground: oklch(0.185 0 0);
+  --popover: oklch(0.988 0.0018 106);
+  --popover-foreground: oklch(0.185 0 0);
+  --primary: oklch(0.185 0 0);
+  --primary-foreground: oklch(0.99 0.0015 106);
+  --secondary: oklch(0.945 0.0025 106);
+  --secondary-foreground: oklch(0.185 0 0);
+  --muted: oklch(0.945 0.0025 106);
+  --muted-foreground: oklch(0.53 0.0035 106); /* #6F6F6B */
+  --accent: oklch(0.93 0.003 106);
+  --accent-foreground: oklch(0.185 0 0);
+  --destructive: oklch(0.55 0.17 27);
+  --destructive-foreground: oklch(0.99 0.0015 106);
+  --border: oklch(0.185 0 0 / 0.08);
+  --input: oklch(0.185 0 0 / 0.12);
+  --ring: oklch(0.185 0 0 / 0.35);
+  /* Electric ring-light blue — contextual accent only. */
+  --booth: oklch(0.63 0.19 256);
+  --shadow-soft:
+    8px 8px 20px oklch(0.24 0 0 / 0.07), -8px -8px 20px oklch(1 0 0 / 0.9);
+  --shadow-inset:
+    inset 4px 4px 10px oklch(0.24 0 0 / 0.06), inset -4px -4px 10px oklch(1 0 0 / 0.85);
+  --chart-1: oklch(0.185 0 0);
+  --chart-2: oklch(0.4 0 0);
+  --chart-3: oklch(0.56 0 0);
+  --chart-4: oklch(0.72 0 0);
+  --chart-5: oklch(0.86 0 0);
+  --sidebar: oklch(0.972 0.0018 106);
+  --sidebar-foreground: oklch(0.185 0 0);
+  --sidebar-primary: oklch(0.185 0 0);
+  --sidebar-primary-foreground: oklch(0.99 0.0015 106);
+  --sidebar-accent: oklch(0.93 0.003 106);
+  --sidebar-accent-foreground: oklch(0.185 0 0);
+  --sidebar-border: oklch(0.185 0 0 / 0.08);
+  --sidebar-ring: oklch(0.185 0 0 / 0.35);
+}
+
+.dark {
+  --background: oklch(0.17 0 0);
+  --foreground: oklch(0.97 0.0015 106);
+  --card: oklch(0.215 0 0);
+  --card-foreground: oklch(0.97 0.0015 106);
+  --popover: oklch(0.215 0 0);
+  --popover-foreground: oklch(0.97 0.0015 106);
+  --primary: oklch(0.97 0.0015 106);
+  --primary-foreground: oklch(0.185 0 0);
+  --secondary: oklch(0.26 0 0);
+  --secondary-foreground: oklch(0.97 0.0015 106);
+  --muted: oklch(0.26 0 0);
+  --muted-foreground: oklch(0.72 0.003 106);
+  --accent: oklch(0.28 0 0);
+  --accent-foreground: oklch(0.97 0.0015 106);
+  --destructive: oklch(0.65 0.19 27);
+  --destructive-foreground: oklch(0.97 0.0015 106);
+  --booth: oklch(0.68 0.18 256);
+  --border: oklch(1 0 0 / 0.12);
+  --input: oklch(1 0 0 / 0.16);
+  --ring: oklch(1 0 0 / 0.4);
+  --shadow-soft: 8px 8px 20px oklch(0 0 0 / 0.4), -8px -8px 20px oklch(1 0 0 / 0.04);
+  --shadow-inset: inset 4px 4px 10px oklch(0 0 0 / 0.35), inset -4px -4px 10px oklch(1 0 0 / 0.03);
+  --chart-1: oklch(0.97 0 0);
+  --chart-2: oklch(0.8 0 0);
+  --chart-3: oklch(0.65 0 0);
+  --chart-4: oklch(0.5 0 0);
+  --chart-5: oklch(0.35 0 0);
+  --sidebar: oklch(0.17 0 0);
+  --sidebar-foreground: oklch(0.97 0.0015 106);
+  --sidebar-primary: oklch(0.97 0.0015 106);
+  --sidebar-primary-foreground: oklch(0.185 0 0);
+  --sidebar-accent: oklch(0.28 0 0);
+  --sidebar-accent-foreground: oklch(0.97 0.0015 106);
+  --sidebar-border: oklch(1 0 0 / 0.12);
+  --sidebar-ring: oklch(1 0 0 / 0.4);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Uppercase micro-label for metadata: guest counts, steps, durations. */
+@utility label-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+/* Elevated surface with soft two-direction shadow. */
+@utility soft-card {
+  background-color: var(--color-card);
+  box-shadow: var(--shadow-soft);
+}
+
+@utility soft-inset {
+  box-shadow: var(--shadow-inset);
+}
+
+/* Very restrained booth-light glow, used behind imagery on selected cards. */
+@utility booth-glow {
+  box-shadow: 0 10px 34px -14px color-mix(in oklab, var(--booth) 60%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+ * Monochrome editorial card system.
+ * Semantic aliases so cards read the same way everywhere, in both themes.
+ * -------------------------------------------------------------------------- */
+:root {
+  --bg: var(--background);
+  --surface: var(--card);
+  --ink: var(--foreground);
+  --muted: var(--muted-foreground);
+  --line: var(--border);
+  --btn: var(--foreground);
+  --btn-text: var(--background);
+}
+
+.dark {
+  --bg: var(--background);
+  --surface: var(--card);
+  --ink: var(--foreground);
+  --muted: var(--muted-foreground);
+  --line: var(--border);
+  --btn: var(--foreground);
+  --btn-text: var(--background);
+}
+
+/* Universal card surface: soft shadow, hairline edge, generous radius. */
+@utility ed-card {
+  background-color: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Dense frost — page barely shows through. Used on the pay sheet. */
+@utility ed-glass {
+  color: var(--ink);
+  background-color: color-mix(in oklab, var(--surface) 90%, transparent);
+  border: 1px solid color-mix(in oklab, white 62%, var(--line));
+  border-radius: 28px;
+  box-shadow: 0 12px 40px -18px oklch(0.185 0 0 / 0.2);
+  backdrop-filter: blur(24px) saturate(1.08);
+}
+
+/* Hairline divider between spec rows. */
+@utility ed-hairline {
+  border-bottom: 1px solid var(--line);
+}
+
+/* Solid ink pill with uppercase label. */
+@utility ed-pill {
+  background-color: var(--btn);
+  color: var(--btn-text);
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
