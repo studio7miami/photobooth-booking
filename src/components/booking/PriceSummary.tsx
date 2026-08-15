@@ -38,28 +38,15 @@ export function PriceSummary({
           />
         ) : null}
       </dl>
-
-      <div className="mt-4 border-t border-border pt-3 text-sm">
-        <Row label="Due today (50% deposit)" value={formatCents(price.depositCents)} strong />
-        <Row label="Balance, 7 days before" value={formatCents(price.balanceCents)} />
-      </div>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className={strong ? "text-foreground" : undefined}>{label}</dt>
-      <dd className={`tabular-nums ${strong ? "font-medium text-foreground" : ""}`}>{value}</dd>
+      <dt>{label}</dt>
+      <dd className="tabular-nums">{value}</dd>
     </div>
   );
 }

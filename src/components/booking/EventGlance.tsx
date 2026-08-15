@@ -103,9 +103,6 @@ export function EventGlance({
           {cta}
         </PillButton>
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        50% deposit at checkout. Balance is due 7 days before the event.
-      </p>
     </div>
   );
 }
