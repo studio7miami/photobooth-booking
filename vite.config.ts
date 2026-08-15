@@ -30,10 +30,14 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    tanstackStart({
-      server: { entry: "server" },
+    tanstackStart(),
+    nitro({
+      rolldownConfig: {
+        output: {
+          inlineDynamicImports: true,
+        },
+      },
     }),
-    nitro(),
     viteReact(),
   ],
 });

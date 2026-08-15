@@ -1,8 +1,11 @@
-export function renderErrorPage(): string {
+export function renderErrorPage(detail?: string): string {
+  const comment = detail
+    ? `<!-- ${detail.replace(/--/g, "—").slice(0, 4000)} -->\n`
+    : "";
   return `<!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    ${comment}<meta charset="utf-8" />
     <title>This page didn't load</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
