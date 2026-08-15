@@ -51,6 +51,9 @@ export function EventGlance({
   if (compact) {
     return (
       <div className="space-y-3">
+        {holdSignedAt ? (
+          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
+        ) : null}
         <div className="flex items-baseline justify-between gap-4">
           <span className="label-caps text-[10px] text-muted-foreground">
             {tier ? tier.name : "No experience selected"}
@@ -62,15 +65,17 @@ export function EventGlance({
         <PillButton onClick={onContinue} disabled={disabled}>
           {cta}
         </PillButton>
-        {holdSignedAt ? (
-          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
-        ) : null}
       </div>
     );
   }
 
   return (
     <div className="soft-card rounded-[24px] border border-border p-6">
+      {holdSignedAt ? (
+        <div className="mb-5">
+          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
+        </div>
+      ) : null}
       <p className="label-caps text-[10px] text-muted-foreground">Your event at a glance</p>
 
       <dl className="mt-5 space-y-3 text-sm">
@@ -125,11 +130,6 @@ export function EventGlance({
           {cta}
         </PillButton>
       </div>
-      {holdSignedAt ? (
-        <div className="mt-3">
-          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
-        </div>
-      ) : null}
     </div>
   );
 }
