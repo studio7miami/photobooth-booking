@@ -11,6 +11,7 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
+import { IMAGES } from "@/assets/images";
 import { publicUrl } from "@/lib/public-base";
 import { getPaymentsBrowserConfig } from "@/lib/payments.functions";
 import { setPaymentsClientToken } from "@/lib/stripe";
@@ -88,19 +89,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Studio 7 Miami — Photo Booth Booking" },
+      { title: "Book Your Experience" },
       {
         name: "description",
         content: "Book Studio 7 Miami's photo booth experiences in a few guided steps.",
       },
       { name: "author", content: "Studio 7 Miami" },
-      { property: "og:title", content: "Studio 7 Miami — Photo Booth Booking" },
+      { property: "og:title", content: "Book Your Experience" },
       {
         property: "og:description",
         content: "Book Studio 7 Miami's photo booth experiences in a few guided steps.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: IMAGES.og },
+      { property: "og:image:width", content: "1024" },
+      { property: "og:image:height", content: "409" },
+      { property: "og:image:alt", content: "Studio 7 Miami photobooth" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Book Your Experience" },
+      { name: "twitter:image", content: IMAGES.og },
     ],
     links: [
       {
