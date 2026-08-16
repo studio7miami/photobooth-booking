@@ -6,7 +6,6 @@ import {
   type PriceBreakdown,
 } from "@/config/pricing";
 import { formatAddressLines } from "@/lib/format-display";
-import { HoldTimer } from "./HoldTimer";
 import { PriceSummary } from "./PriceSummary";
 import { PillButton } from "./StepShell";
 
@@ -22,8 +21,6 @@ export function EventGlance({
   disabled,
   cta = "Continue",
   compact = false,
-  holdSignedAt,
-  onHoldExpired,
 }: {
   experience?: ExperienceKey | undefined;
   eventDate?: string | undefined;
@@ -37,8 +34,6 @@ export function EventGlance({
   disabled?: boolean;
   cta?: string;
   compact?: boolean;
-  holdSignedAt?: string | undefined;
-  onHoldExpired?: (() => void) | undefined;
 }) {
   const tier = experience ? EXPERIENCES[experience] : null;
   const hours = tier ? (durationHours ?? tier.baseHours) : null;
@@ -51,9 +46,6 @@ export function EventGlance({
   if (compact) {
     return (
       <div className="space-y-3">
-        {holdSignedAt ? (
-          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
-        ) : null}
         <div className="flex items-baseline justify-between gap-4">
           <span className="label-caps text-[10px] text-muted-foreground">
             {tier ? tier.name : "No experience selected"}
@@ -71,11 +63,6 @@ export function EventGlance({
 
   return (
     <div className="soft-card rounded-[24px] border border-border p-6">
-      {holdSignedAt ? (
-        <div className="mb-5">
-          <HoldTimer signedAt={holdSignedAt} {...(onHoldExpired ? { onExpired: onHoldExpired } : {})} />
-        </div>
-      ) : null}
       <p className="label-caps text-[10px] text-muted-foreground">Your event at a glance</p>
 
       <dl className="mt-5 space-y-3 text-sm">

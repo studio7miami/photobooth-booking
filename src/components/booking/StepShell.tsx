@@ -61,9 +61,11 @@ export function StepShell({
                   {title}
                 </h1>
               ) : null}
-              <p className="mt-1.5 max-w-xl text-[0.95rem] text-muted-foreground sm:text-base">
-                {supporting}
-              </p>
+              {supporting ? (
+                <p className="mt-1.5 max-w-xl text-[0.95rem] text-muted-foreground sm:text-base">
+                  {supporting}
+                </p>
+              ) : null}
             </div>
             <div className="mt-4 sm:mt-5">{children}</div>
           </div>

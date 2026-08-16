@@ -107,7 +107,7 @@ export function SignaturePad({
           aria-label="Signature canvas"
         />
         {!hasInk ? (
-          <span className="pointer-events-none absolute inset-x-0 bottom-6 text-center text-sm text-muted-foreground">
+          <span className="pointer-events-none absolute inset-x-0 bottom-6 px-4 text-center text-[11px] leading-snug text-muted-foreground sm:text-sm">
             Draw your signature with a finger, stylus, or mouse
           </span>
         ) : null}

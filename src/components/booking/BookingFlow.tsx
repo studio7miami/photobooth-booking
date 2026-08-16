@@ -29,6 +29,7 @@ import { StepPayment } from "./StepPayment";
 import { PaymentConfirmation } from "./PaymentConfirmation";
 
 import { EventGlance } from "./EventGlance";
+import { HoldTimer } from "./HoldTimer";
 
 type Errors = Record<string, string | undefined>;
 
@@ -53,7 +54,7 @@ const COPY = [
   },
   {
     title: "Secure your date",
-    supporting: "Lock in your date with a deposit, or pay in full today. It's confirmed the moment payment clears.",
+    supporting: "",
   },
 ] as const;
 
@@ -301,7 +302,6 @@ export function BookingFlow() {
     stationCount: values.stationCount,
     ...(step >= 4 && values.eventLocation ? { eventLocation: values.eventLocation } : {}),
     ...(price ? { price } : {}),
-    ...(signed ? { holdSignedAt: signed.signed_at, onHoldExpired: releaseHold } : {}),
     onContinue: validateAndAdvance,
     disabled: !canAdvance,
     cta:
@@ -400,7 +400,7 @@ export function BookingFlow() {
       {step === 5 ? (
         signed ? (
           <div className="space-y-6">
-            <SignedReceipt record={signed} />
+            <SignedReceipt record={signed} onHoldExpired={releaseHold} />
             <StepPayment
               bookingId={signed.booking_id}
               {...(values.experience && EXPERIENCES[values.experience]
@@ -427,12 +427,18 @@ export function BookingFlow() {
   );
 }
 
-function SignedReceipt(_: { record: SignedRecord }) {
+function SignedReceipt({
+  record,
+  onHoldExpired,
+}: {
+  record: SignedRecord;
+  onHoldExpired: () => void;
+}) {
   return (
     <div className="soft-inset flex items-start gap-3 rounded-[16px] border border-border p-5">
       <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <p className="text-sm text-muted-foreground">
-        Your date is held. Payment confirms the booking — choose deposit or pay in full below.
+        <HoldTimer signedAt={record.signed_at} onExpired={onHoldExpired} />
       </p>
     </div>
   );
