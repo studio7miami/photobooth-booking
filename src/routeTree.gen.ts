@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BookedPreviewRouteImport } from './routes/booked-preview'
 import { Route as CheckoutPreviewRouteImport } from './routes/checkout-preview'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookedPreviewRoute = BookedPreviewRouteImport.update({
+  id: '/booked-preview',
+  path: '/booked-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutPreviewRoute = CheckoutPreviewRouteImport.update({
@@ -32,30 +38,47 @@ const ApiPublicPaymentsWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/checkout-preview' | '/api/public/payments/webhook'
+  fullPaths:
+    | '/'
+    | '/booked-preview'
+    | '/checkout-preview'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/checkout-preview' | '/api/public/payments/webhook'
-  id: '__root__' | '/' | '/checkout-preview' | '/api/public/payments/webhook'
+  to:
+    | '/'
+    | '/booked-preview'
+    | '/checkout-preview'
+    | '/api/public/payments/webhook'
+  id:
+    | '__root__'
+    | '/'
+    | '/booked-preview'
+    | '/checkout-preview'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BookedPreviewRoute: typeof BookedPreviewRoute
   CheckoutPreviewRoute: typeof CheckoutPreviewRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
@@ -67,6 +90,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/booked-preview': {
+      id: '/booked-preview'
+      path: '/booked-preview'
+      fullPath: '/booked-preview'
+      preLoaderRoute: typeof BookedPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout-preview': {
@@ -88,6 +118,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BookedPreviewRoute: BookedPreviewRoute,
   CheckoutPreviewRoute: CheckoutPreviewRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }

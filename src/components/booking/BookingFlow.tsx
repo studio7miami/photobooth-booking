@@ -88,6 +88,11 @@ export function BookingFlow() {
       setHydrated(true);
       return;
     }
+    if (import.meta.env.DEV && (params.get("preview") === "booked" || params.get("preview") === "deposit")) {
+      setPaidBookingId(params.get("preview") === "deposit" ? "preview-deposit" : "preview");
+      setHydrated(true);
+      return;
+    }
     const draft = loadDraft();
     if (draft) {
       const v = { ...draft.values };
@@ -268,9 +273,10 @@ export function BookingFlow() {
 
   if (paidBookingId) {
     return (
-      <div className="mx-auto max-w-2xl px-5 py-16">
-        <PaymentConfirmation bookingId={paidBookingId} />
-      </div>
+      <PaymentConfirmation
+        bookingId={paidBookingId}
+        preview={paidBookingId === "preview-deposit" ? "deposit" : paidBookingId === "preview"}
+      />
     );
   }
 

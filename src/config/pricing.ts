@@ -113,6 +113,8 @@ export type EventTypeValue = (typeof EVENT_TYPES)[number]["value"];
 export const DEPOSIT_PERCENT = 50;
 /** Balance is due this many days before the event date. */
 export const BALANCE_DUE_DAYS_BEFORE_EVENT = 7;
+/** Events this close (or closer) cannot take a deposit — pay in full. */
+export const REQUIRE_FULL_PAYMENT_WITHIN_DAYS = 3;
 export const CURRENCY = "usd";
 
 export type PriceInput = {

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const inputSchema = z.object({
   bookingId: z.string().uuid(),
-  paymentMode: z.enum(["deposit", "full"]),
+  paymentMode: z.enum(["deposit", "full", "balance"]),
   environment: z.enum(["sandbox", "live"]),
   returnUrl: z.string().url(),
 });

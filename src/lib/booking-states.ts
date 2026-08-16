@@ -40,3 +40,8 @@ export function assertTransition(from: BookingStatus, to: BookingStatus): void {
 export function canStartPayment(status: BookingStatus): boolean {
   return status === "agreement_signed";
 }
+
+/** Remaining balance may be collected after the deposit has confirmed. */
+export function canStartBalancePayment(status: BookingStatus): boolean {
+  return status === "deposit_paid" || status === "confirmed" || status === "balance_due";
+}

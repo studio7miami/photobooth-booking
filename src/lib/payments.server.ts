@@ -1,13 +1,13 @@
 import { CONFIRMED_STATUSES } from "@/config/booking-rules";
-import { formatCents } from "@/config/pricing";
-import { canStartPayment, type BookingStatus } from "./booking-states";
+import { formatCents, REQUIRE_FULL_PAYMENT_WITHIN_DAYS } from "@/config/pricing";
+import { canStartBalancePayment, canStartPayment, type BookingStatus } from "./booking-states";
 import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
 import { isHoldActive } from "./hold";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "./stripe.server";
 
 type StartArgs = {
   bookingId: string;
-  paymentMode: "deposit" | "full";
+  paymentMode: "deposit" | "full" | "balance";
   environment: StripeEnv;
   returnUrl: string;
 };
@@ -58,47 +58,6 @@ async function resolveCustomer(
   return created.id;
 }
 
-async function createBalancePaymentLink(args: {
-  stripe: ReturnType<typeof createStripeClient>;
-  bookingId: string;
-  balanceCents: number;
-  catalogProductId: string | null;
-}): Promise<void> {
-  const price = await args.stripe.prices.create(
-    {
-      currency: "usd",
-      unit_amount: args.balanceCents,
-      ...(args.catalogProductId
-        ? { product: args.catalogProductId }
-        : {
-            product_data: {
-              name: `Studio 7 Miami remaining balance — ${formatCents(args.balanceCents)}`,
-            },
-          }),
-      metadata: { booking_id: args.bookingId },
-    },
-    { idempotencyKey: `booking-${args.bookingId}-balance-price` },
-  );
-  const link = await args.stripe.paymentLinks.create(
-    {
-      line_items: [{ price: price.id, quantity: 1 }],
-      metadata: { booking_id: args.bookingId, payment_mode: "balance" },
-      payment_intent_data: {
-        metadata: { booking_id: args.bookingId, payment_mode: "balance" },
-      },
-    },
-    { idempotencyKey: `booking-${args.bookingId}-balance-link` },
-  );
-  const supabase = await getAdmin();
-  await supabase
-    .from("bookings")
-    .update({
-      balance_link: link.url,
-      balance_status: "pending",
-    } as never)
-    .eq("id", args.bookingId);
-}
-
 export async function startBookingPayment(args: StartArgs): Promise<
   { clientSecret: string } | { error: string }
 > {
@@ -111,41 +70,63 @@ export async function startBookingPayment(args: StartArgs): Promise<
 
   if (error || !booking) return { error: "Booking not found." };
   const row = booking as Record<string, any>;
-
-  if (!canStartPayment(row["status"] as BookingStatus)) {
-    return { error: "Payment unlocks once the agreement is signed." };
-  }
-
-  if (!isHoldActive(row["signed_at"] as string | null)) {
-    await transitionBooking({
-      bookingId: args.bookingId,
-      from: "agreement_signed",
-      to: "expired",
-      actor: "system",
-      meta: { reason: "hold_expired" },
-    });
-    return { error: "Your 10-minute hold ended. Go back and sign again to reserve this time." };
-  }
+  const status = row["status"] as BookingStatus;
 
   const totalCents = Number(row["total_cents"] ?? 0);
   const depositCents = Number(row["deposit_cents"] ?? 0);
   const balanceCents = Number(row["balance_cents"] ?? 0);
 
-  // Events inside 7 days leave no window to collect a balance — full payment only.
-  const eventDate = row["event_date"] ? String(row["event_date"]) : null;
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(
-    new Date(),
-  );
-  const daysOut = eventDate
-    ? Math.round(
-        (Date.parse(`${eventDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000,
-      )
-    : Number.POSITIVE_INFINITY;
-  const paymentMode: "deposit" | "full" = daysOut <= 7 ? "full" : args.paymentMode;
+  let paymentMode: "deposit" | "full" | "balance" = args.paymentMode;
+  let amountCents = 0;
+  let label = "";
 
-  const amountCents = paymentMode === "deposit" ? depositCents : totalCents;
-  if (!amountCents || amountCents < 50) return { error: "This booking has no payable amount." };
+  if (paymentMode === "balance") {
+    if (!canStartBalancePayment(status)) {
+      return { error: "The remaining balance can be paid after your deposit is confirmed." };
+    }
+    if (row["balance_status"] === "paid" || balanceCents < 50) {
+      return { error: "This booking has no remaining balance." };
+    }
+    amountCents = balanceCents;
+    label = `Studio 7 Miami remaining balance — ${formatCents(amountCents)}`;
+  } else {
+    if (!canStartPayment(status)) {
+      return { error: "Payment unlocks once the agreement is signed." };
+    }
 
+    if (!isHoldActive(row["signed_at"] as string | null)) {
+      await transitionBooking({
+        bookingId: args.bookingId,
+        from: "agreement_signed",
+        to: "expired",
+        actor: "system",
+        meta: { reason: "hold_expired" },
+      });
+      return { error: "Your 10-minute hold ended. Go back and sign again to reserve this time." };
+    }
+
+    const eventDate = row["event_date"] ? String(row["event_date"]) : null;
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(
+      new Date(),
+    );
+    const daysOut = eventDate
+      ? Math.round(
+          (Date.parse(`${eventDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000,
+        )
+      : Number.POSITIVE_INFINITY;
+    paymentMode =
+      daysOut <= REQUIRE_FULL_PAYMENT_WITHIN_DAYS
+        ? "full"
+        : args.paymentMode === "deposit"
+          ? "deposit"
+          : "full";
+    amountCents = paymentMode === "deposit" ? depositCents : totalCents;
+    if (!amountCents || amountCents < 50) return { error: "This booking has no payable amount." };
+    label =
+      paymentMode === "deposit"
+        ? `Studio 7 Miami deposit (50%) — ${formatCents(amountCents)}`
+        : `Studio 7 Miami booking paid in full — ${formatCents(amountCents)}`;
+  }
 
   try {
     const stripe = createStripeClient(args.environment);
@@ -159,11 +140,6 @@ export async function startBookingPayment(args: StartArgs): Promise<
       }),
       resolveCatalogProductId(stripe, row["experience"]),
     ]);
-
-    const label =
-      paymentMode === "deposit"
-        ? `Studio 7 Miami deposit (50%) — ${formatCents(amountCents)}`
-        : `Studio 7 Miami booking paid in full — ${formatCents(amountCents)}`;
 
     const session = await stripe.checkout.sessions.create(
       {
@@ -203,26 +179,14 @@ export async function startBookingPayment(args: StartArgs): Promise<
 
     const clientSecret = session.client_secret ?? "";
 
-    // Don't hold the pay sheet for bookkeeping — customer id and the
-    // balance link can land after Stripe already has a client secret.
     void supabase
       .from("bookings")
-      .update({
-        stripe_customer_id: customerId,
-        payment_mode: paymentMode,
-      } as never)
+      .update(
+        paymentMode === "balance"
+          ? ({ stripe_customer_id: customerId } as never)
+          : ({ stripe_customer_id: customerId, payment_mode: paymentMode } as never),
+      )
       .eq("id", args.bookingId);
-
-    if (paymentMode === "deposit" && balanceCents >= 50 && !row["balance_link"]) {
-      void createBalancePaymentLink({
-        stripe,
-        bookingId: args.bookingId,
-        balanceCents,
-        catalogProductId,
-      }).catch((err) => {
-        console.error("[payments] balance link failed", err);
-      });
-    }
 
     return { clientSecret };
   } catch (err) {
@@ -294,10 +258,20 @@ export async function applySuccessfulPayment(facts: PaymentFacts) {
     return;
   }
   const row = data as Record<string, any>;
-  const status = row["status"] as BookingStatus;
+  let status = row["status"] as BookingStatus;
 
   if (facts.paymentMode === "balance") {
     if (row["balance_payment_intent_id"] === facts.paymentIntentId) return;
+    if (status === "deposit_paid") {
+      await transitionBooking({
+        bookingId: facts.bookingId,
+        from: "deposit_paid",
+        to: "confirmed",
+        actor: "stripe_webhook",
+        meta: { payment_mode: "balance" },
+      });
+      status = "confirmed";
+    }
     const from: BookingStatus = status === "balance_due" ? "balance_due" : "confirmed";
     if (from !== status) return;
     await transitionBooking({
@@ -401,7 +375,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
   const { data } = await supabase
     .from("bookings")
     .select(
-      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time, stripe_customer_id",
+      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location, stripe_customer_id",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -418,6 +392,10 @@ export async function readBookingPaymentStatus(bookingId: string) {
     experience: string | null;
     event_date: string | null;
     event_start_time: string | null;
+    client_name: string | null;
+    client_email: string | null;
+    client_phone: string | null;
+    event_location: string | null;
     stripe_customer_id: string | null;
   };
 
@@ -426,7 +404,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
     const { data: again } = await supabase
       .from("bookings")
       .select(
-        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time",
+        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location",
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -442,6 +420,10 @@ export async function readBookingPaymentStatus(bookingId: string) {
       experience: string | null;
       event_date: string | null;
       event_start_time: string | null;
+      client_name: string | null;
+      client_email: string | null;
+      client_phone: string | null;
+      event_location: string | null;
     };
   }
 
