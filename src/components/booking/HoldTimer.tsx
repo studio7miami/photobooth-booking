@@ -38,7 +38,8 @@ export function HoldTimer({
   return (
     <>
       Your date is held{" "}
-      <span className="tabular-nums text-foreground">{clock}</span>
+      <span className="tabular-nums text-foreground">{clock}</span>. Payment confirms the
+      booking — choose deposit or pay in full below.
     </>
   );
 }
