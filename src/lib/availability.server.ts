@@ -69,6 +69,21 @@ export async function expireStaleHolds(): Promise<void> {
   }
 }
 
+/** Drop an unpaid hold when the guest's session resets (idle or hold timer). */
+export async function releaseUnsignedHold(bookingId: string): Promise<void> {
+  try {
+    await transitionBooking({
+      bookingId,
+      from: "agreement_signed",
+      to: "expired",
+      actor: "client",
+      meta: { reason: "session_reset" },
+    });
+  } catch (error) {
+    console.error("[availability] Failed to release hold", error);
+  }
+}
+
 async function listBookingOccupancy(excludeBookingId?: string): Promise<Occupancy[]> {
   try {
     await expireStaleHolds();

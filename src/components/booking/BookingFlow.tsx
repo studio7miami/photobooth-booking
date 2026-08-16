@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
+import { INACTIVITY_MINUTES } from "@/config/booking-rules";
 import {
   EXPERIENCES,
   calculatePrice,
@@ -17,7 +18,8 @@ import {
 } from "@/lib/booking-schema";
 import { finalizeSignatureSchema } from "@/lib/agreement-schema";
 import { finalizeSignature } from "@/lib/agreement.functions";
-import { clearDraft, loadDraft, saveDraft, type StoredSigned } from "@/lib/booking-draft";
+import { releaseHold as releaseHoldFn } from "@/lib/availability.functions";
+import { clearDraft, loadDraft, saveDraft, touchDraft, type StoredSigned } from "@/lib/booking-draft";
 import { isHoldActive } from "@/lib/hold";
 import { getStripe } from "@/lib/stripe";
 import { StepShell } from "./StepShell";
@@ -60,6 +62,7 @@ const COPY = [
 
 const LAST_STEP = 5;
 const SIGN_STEP = 4;
+const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 
 export function BookingFlow() {
   const [hydrated, setHydrated] = useState(false);
@@ -74,6 +77,7 @@ export function BookingFlow() {
   const [paidBookingId, setPaidBookingId] = useState<string | null>(null);
 
   const sign = useServerFn(finalizeSignature);
+  const releaseUnsignedHold = useServerFn(releaseHoldFn);
 
   useEffect(() => {
     if (step >= SIGN_STEP) void getStripe();
@@ -126,10 +130,62 @@ export function BookingFlow() {
     }
   }, [resumed]);
 
-  const releaseHold = useCallback(() => {
-    setSigned(null);
-    toast("Your 10-minute hold ended. Sign again to reserve this time.");
-  }, []);
+  const startOver = useCallback(
+    (reason: "idle" | "hold") => {
+      const holdId = signed?.booking_id;
+      clearDraft();
+      setStep(1);
+      setValues({});
+      setAgreement({});
+      setErrors({});
+      setSigned(null);
+      setSubmitting(false);
+      if (holdId) void releaseUnsignedHold({ data: { bookingId: holdId } });
+      toast(
+        reason === "idle"
+          ? "Session ended after 10 minutes of inactivity. Start again when you're ready."
+          : "Your 10-minute hold ended. The time is open again — start over to reserve it.",
+      );
+    },
+    [releaseUnsignedHold, signed?.booking_id],
+  );
+
+  const startOverRef = useRef(startOver);
+  startOverRef.current = startOver;
+  const flowActiveRef = useRef(false);
+  flowActiveRef.current = Boolean(paidBookingId) || step > 1 || Object.keys(values).length > 0 || Boolean(signed);
+
+  useEffect(() => {
+    if (!hydrated || paidBookingId) return;
+    let lastActivity = Date.now();
+    let lastTouch = 0;
+    const bump = () => {
+      lastActivity = Date.now();
+      if (lastActivity - lastTouch < 15_000) return;
+      lastTouch = lastActivity;
+      touchDraft();
+    };
+    const maybeReset = () => {
+      if (!flowActiveRef.current) return;
+      if (Date.now() - lastActivity < INACTIVITY_MS) return;
+      startOverRef.current("idle");
+      lastActivity = Date.now();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") maybeReset();
+    };
+    const events = ["pointerdown", "keydown", "touchstart", "scroll", "click"] as const;
+    for (const event of events) {
+      window.addEventListener(event, bump, { passive: true });
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    const id = window.setInterval(maybeReset, 5_000);
+    return () => {
+      for (const event of events) window.removeEventListener(event, bump);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(id);
+    };
+  }, [hydrated, paidBookingId]);
 
   const patch = (p: BookingDraft) => {
     setValues((v) => ({ ...v, ...p }));
@@ -400,7 +456,7 @@ export function BookingFlow() {
       {step === 5 ? (
         signed ? (
           <div className="space-y-6">
-            <SignedReceipt record={signed} onHoldExpired={releaseHold} />
+            <SignedReceipt record={signed} onHoldExpired={() => startOver("hold")} />
             <StepPayment
               bookingId={signed.booking_id}
               {...(values.experience && EXPERIENCES[values.experience]

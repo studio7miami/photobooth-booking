@@ -24,7 +24,7 @@ Five steps, in order. They cannot skip ahead, and payment stays locked until the
 4. **Review & sign** — The agreement is filled in with their event, price, deposit, and balance due date. They sign on the page. That starts a **10-minute hold** on the slot.
 5. **Pay** — Deposit (50%) or pay in full. Events **3 days away or closer must be paid in full**. Cards are not saved. When Stripe confirms, the date is booked.
 
-If they leave mid-flow, the browser keeps a draft so they can pick up where they left off. After signing, they have ten minutes to finish payment. If the hold expires, that time opens again and they sign once more to re-hold it.
+If they leave mid-flow, the browser keeps a draft for **ten minutes**. After ten minutes of inactivity the flow starts over and any unpaid hold on that time is released. After signing, they also have ten minutes to finish payment. If that hold expires, the time opens again and they start over to reserve it.
 
 On success they see a confirmation: package, date and time, location, their contact details, and what they paid. A deposit booking also shows the remaining balance and the date it is due.
 

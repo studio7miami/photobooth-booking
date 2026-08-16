@@ -14,6 +14,8 @@ export const BOOKING_TIMEZONE = "America/New_York";
 
 /** Unpaid signatures hold the slot this long. After that the time opens again. */
 export const HOLD_MINUTES = 10;
+/** Idle or abandoned drafts reset after this long. Same clock as the unpaid hold. */
+export const INACTIVITY_MINUTES = HOLD_MINUTES;
 
 /** Paid (signed + paid) rows keep the slot. Unpaid signatures are a timed hold. */
 export const CONFIRMED_STATUSES = [
