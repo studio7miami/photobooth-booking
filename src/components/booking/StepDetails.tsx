@@ -77,7 +77,7 @@ export function StepDetails({
 
       <div className="rounded-[24px] border border-border soft-card p-5 sm:p-6">
         <p className="label-caps text-[10px] text-muted-foreground">Event type</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           {EVENT_TYPES.map((t) => (
             <button
               key={t.value}
@@ -85,7 +85,8 @@ export function StepDetails({
               aria-pressed={values.eventType === t.value}
               onClick={() => onChange({ eventType: t.value })}
               className={cn(
-                "label-caps rounded-full border px-5 py-3 text-[11px] transition-all",
+                "label-caps w-full rounded-full border px-5 py-3 text-[11px] transition-all sm:w-auto",
+                t.value === "other" && "col-span-2 sm:col-span-1",
                 values.eventType === t.value
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background hover:border-foreground/40",
