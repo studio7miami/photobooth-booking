@@ -17,13 +17,33 @@ let credentials: ServiceAccount | null | undefined;
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
 
-type CalendarEventTime = { date?: string; dateTime?: string };
+type CalendarEventTime = { date?: string; dateTime?: string; timeZone?: string };
 type CalendarEvent = {
+  id?: string;
   status?: string;
   transparency?: string;
   start?: CalendarEventTime;
   end?: CalendarEventTime;
+  extendedProperties?: { private?: Record<string, string> };
 };
+
+const BOOKING_EVENT_KEY = "studio7_booking_id";
+
+function hhmm(value: string | null | undefined): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  return raw.slice(0, 5);
+}
+
+/** Calendar event ids may only use 0-9, a-v, and hyphen. */
+export function googleEventIdForBooking(bookingId: string): string {
+  return `s7pb${bookingId.replace(/-/g, "").toLowerCase()}`;
+}
+
+function isOwnBookingEvent(event: CalendarEvent): boolean {
+  if (event.extendedProperties?.private?.[BOOKING_EVENT_KEY]) return true;
+  return Boolean(event.id?.startsWith("s7pb"));
+}
 
 function calendarId(): string | null {
   const id = process.env["GOOGLE_CALENDAR_ID"]?.trim();
@@ -204,8 +224,120 @@ export async function listGoogleOccupancy(): Promise<Occupancy[]> {
   const events = await listCalendarEvents();
   const out: Occupancy[] = [];
   for (const event of events) {
+    if (isOwnBookingEvent(event)) continue;
     const occupancy = occupancyFromEvent(event, timeZone);
     if (occupancy) out.push(occupancy);
   }
   return out;
+}
+
+export type PaidBookingCalendarInput = {
+  id: string;
+  client_name: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  event_location: string | null;
+  event_type: string | null;
+  event_date: string | null;
+  event_start_time: string | null;
+  duration_hours: number | null;
+  experience: string | null;
+  payment_mode: string | null;
+};
+
+function packageLabel(experience: string | null): string {
+  if (experience === "social") return "The Miami Social";
+  if (experience === "luxe") return "The Miami Luxe";
+  if (experience === "classic") return "The Miami Classic";
+  return "Photobooth";
+}
+
+function pad2(value: string | undefined): string {
+  return (value ?? "00").padStart(2, "0");
+}
+
+/**
+ * Writes the booked hours onto the photobooth calendar after payment.
+ * Setup/breakdown stay in availability math — they are not added to the event
+ * so occupancy is not padded twice. Events we create are skipped when reading
+ * holds; the bookings table remains the source of truth for paid slots.
+ */
+export async function upsertPaidBookingEvent(
+  booking: PaidBookingCalendarInput,
+): Promise<{ eventId: string; created: boolean } | null> {
+  const id = calendarId();
+  const token = await getAccessToken();
+  const date = booking.event_date?.trim();
+  const startTime = hhmm(booking.event_start_time);
+  if (!id || !token || !date || !startTime) {
+    if (!id || !token) {
+      console.error("[google-calendar] cannot write booking — calendar id or token missing");
+    }
+    return null;
+  }
+
+  const duration = Number(booking.duration_hours) || 2;
+  const timeZone = calendarTimezone();
+  const startMs = wallTimeToUtcMs(date, startTime, timeZone);
+  const endMs = startMs + duration * 60 * 60 * 1000;
+  const endDate = new Date(endMs);
+  const endWall = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(endDate);
+  const endHour = endWall.find((part) => part.type === "hour")?.value ?? "00";
+  const endMinute = endWall.find((part) => part.type === "minute")?.value ?? "00";
+  const endYmd = new Intl.DateTimeFormat("en-CA", { timeZone }).format(endDate);
+  const pkg = packageLabel(booking.experience);
+  const who = booking.client_name?.trim() || "Client";
+  const eventId = googleEventIdForBooking(booking.id);
+
+  const lines = [
+    `${pkg} · ${duration} hour${duration === 1 ? "" : "s"}`,
+    `Client: ${who}`,
+    booking.client_email ? `Email: ${booking.client_email}` : null,
+    booking.client_phone ? `Phone: ${booking.client_phone}` : null,
+    booking.event_type ? `Event: ${booking.event_type}` : null,
+    booking.payment_mode === "deposit" ? "Payment: deposit" : "Payment: paid in full",
+    `Booking ID: ${booking.id}`,
+  ].filter(Boolean);
+
+  const body = {
+    id: eventId,
+    summary: `Photobooth · ${pkg} · ${who}`,
+    description: lines.join("\n"),
+    location: booking.event_location?.trim() || undefined,
+    start: { dateTime: `${date}T${startTime}:00`, timeZone },
+    end: { dateTime: `${endYmd}T${pad2(endHour)}:${pad2(endMinute)}:00`, timeZone },
+    transparency: "opaque",
+    status: "confirmed",
+    extendedProperties: {
+      private: { [BOOKING_EVENT_KEY]: booking.id },
+    },
+  };
+
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events?sendUpdates=none`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (response.ok) {
+    const created = (await response.json()) as { id?: string };
+    return { eventId: created.id ?? eventId, created: true };
+  }
+
+  if (response.status === 409) {
+    return { eventId, created: false };
+  }
+
+  const text = await response.text();
+  console.error(`[google-calendar] events.insert failed [${response.status}]: ${text}`);
+  return null;
 }

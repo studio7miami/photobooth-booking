@@ -1,3 +1,4 @@
+import { CONFIRMED_STATUSES } from "@/config/booking-rules";
 import { formatCents } from "@/config/pricing";
 import { canStartPayment, type BookingStatus } from "./booking-states";
 import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
@@ -188,6 +189,7 @@ export async function startBookingPayment(args: StartArgs): Promise<
         ],
         payment_intent_data: {
           description: label,
+          receipt_email: String(row["client_email"] ?? "").trim() || undefined,
           // Deliberately no setup_future_usage — the card is not saved.
           metadata: {
             booking_id: args.bookingId,
@@ -236,6 +238,48 @@ export type PaymentFacts = {
   amountCents: number;
 };
 
+async function syncPaidBookingCalendar(bookingId: string) {
+  try {
+    const supabase = await getAdmin();
+    const { data } = await supabase
+      .from("bookings")
+      .select(
+        "id, status, client_name, client_email, client_phone, event_location, event_type, event_date, event_start_time, duration_hours, experience, payment_mode",
+      )
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (!data) return;
+    const row = data as {
+      id: string;
+      status: BookingStatus;
+      client_name: string | null;
+      client_email: string | null;
+      client_phone: string | null;
+      event_location: string | null;
+      event_type: string | null;
+      event_date: string | null;
+      event_start_time: string | null;
+      duration_hours: number | null;
+      experience: string | null;
+      payment_mode: string | null;
+    };
+    if (!CONFIRMED_STATUSES.includes(row.status as (typeof CONFIRMED_STATUSES)[number])) return;
+    const { upsertPaidBookingEvent } = await import("./google-calendar.server");
+    const written = await upsertPaidBookingEvent(row);
+    if (written?.created) {
+      await logBookingEvent({
+        bookingId,
+        from: row.status,
+        to: row.status,
+        actor: "google_calendar",
+        meta: { google_calendar_event_id: written.eventId },
+      });
+    }
+  } catch (error) {
+    console.error("[payments] Google Calendar write failed", error);
+  }
+}
+
 /** Payment truth is set here only — never from the browser. */
 export async function applySuccessfulPayment(facts: PaymentFacts) {
   const supabase = await getAdmin();
@@ -273,6 +317,7 @@ export async function applySuccessfulPayment(facts: PaymentFacts) {
   }
 
   if (row["stripe_payment_intent_id"] === facts.paymentIntentId && status !== "agreement_signed") {
+    await syncPaidBookingCalendar(facts.bookingId);
     return;
   }
   if (status !== "agreement_signed") {
@@ -315,6 +360,8 @@ export async function applySuccessfulPayment(facts: PaymentFacts) {
     actor: "stripe_webhook",
     meta: { payment_mode: facts.paymentMode },
   });
+
+  await syncPaidBookingCalendar(facts.bookingId);
 }
 
 function stripeEnvFromSecret(): StripeEnv {

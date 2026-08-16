@@ -82,7 +82,7 @@ export function PaymentConfirmation({ bookingId }: { bookingId: string }) {
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {settled
-          ? "Payment received and your booking is confirmed. A confirmation email is on its way."
+          ? "Payment received and your booking is confirmed. Stripe will email your receipt. Our team will follow up with your agreement and event details."
           : "We're waiting for the payment confirmation from our processor. This usually takes a few seconds."}
       </p>
 
