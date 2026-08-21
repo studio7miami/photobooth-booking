@@ -42,12 +42,7 @@ export function googleEventIdForBooking(bookingId: string): string {
 
 function isOwnBookingEvent(event: CalendarEvent): boolean {
   if (event.extendedProperties?.private?.[BOOKING_EVENT_KEY]) return true;
-  return Boolean(event.id?.startsWith("s7pb"));
-}
-
-function calendarId(): string | null {
-  const id = process.env["GOOGLE_CALENDAR_ID"]?.trim();
-  return id || null;
+  return Boolean(event.id?.startsWith("s7pb") || event.id?.startsWith("s7st"));
 }
 
 function calendarTimezone(): string {
@@ -144,7 +139,11 @@ async function getAccessToken(): Promise<string | null> {
   return json.access_token;
 }
 
-function occupancyFromEvent(event: CalendarEvent, timeZone: string): Occupancy | null {
+function occupancyFromEvent(
+  event: CalendarEvent,
+  timeZone: string,
+  minHoldHours = MIN_CALENDAR_HOLD_HOURS,
+): Occupancy | null {
   const start = event.start;
   const end = event.end;
   if (!start || !end) return null;
@@ -158,19 +157,31 @@ function occupancyFromEvent(event: CalendarEvent, timeZone: string): Occupancy |
   if (start.dateTime && end.dateTime) {
     const startMs = new Date(start.dateTime).getTime();
     let endMs = new Date(end.dateTime).getTime();
-    const minEnd = startMs + MIN_CALENDAR_HOLD_HOURS * 60 * 60 * 1000;
-    if (endMs < minEnd) endMs = minEnd;
+    if (minHoldHours > 0) {
+      const minEnd = startMs + minHoldHours * 60 * 60 * 1000;
+      if (endMs < minEnd) endMs = minEnd;
+    }
     return occupancyFromWindow({ startMs, endMs, exclusive: false });
   }
 
   return null;
 }
 
-async function listCalendarEvents(): Promise<CalendarEvent[]> {
-  const id = calendarId();
+export type CalendarKind = "photobooth" | "studio_photo" | "studio_acting";
+
+function calendarIdFor(kind: CalendarKind = "photobooth"): string | null {
+  if (kind === "studio_photo") return process.env["GOOGLE_CALENDAR_ID_STUDIO"]?.trim() || null;
+  if (kind === "studio_acting") return process.env["GOOGLE_CALENDAR_ID_ACTING"]?.trim() || null;
+  return process.env["GOOGLE_CALENDAR_ID"]?.trim() || null;
+}
+
+async function listCalendarEvents(kind: CalendarKind = "photobooth"): Promise<CalendarEvent[]> {
+  const id = calendarIdFor(kind);
   const token = await getAccessToken();
   if (!id || !token) {
-    if (!id) console.error("[google-calendar] GOOGLE_CALENDAR_ID is not set");
+    if (!id && kind === "photobooth") {
+      console.error("[google-calendar] GOOGLE_CALENDAR_ID is not set");
+    }
     if (!token) {
       console.error(
         "[google-calendar] could not mint an access token — restart the dev server after adding .env keys",
@@ -220,12 +231,27 @@ async function listCalendarEvents(): Promise<CalendarEvent[]> {
 
 /** Photobooth Google Calendar holds, including Free and all-day events. */
 export async function listGoogleOccupancy(): Promise<Occupancy[]> {
+  return occupancyFromCalendar("photobooth", MIN_CALENDAR_HOLD_HOURS);
+}
+
+export async function listStudioPhotoGoogleOccupancy(): Promise<Occupancy[]> {
+  return occupancyFromCalendar("studio_photo", 0);
+}
+
+export async function listActingGoogleOccupancy(): Promise<Occupancy[]> {
+  return occupancyFromCalendar("studio_acting", 0);
+}
+
+async function occupancyFromCalendar(
+  kind: CalendarKind,
+  minHoldHours: number,
+): Promise<Occupancy[]> {
   const timeZone = calendarTimezone();
-  const events = await listCalendarEvents();
+  const events = await listCalendarEvents(kind);
   const out: Occupancy[] = [];
   for (const event of events) {
     if (isOwnBookingEvent(event)) continue;
-    const occupancy = occupancyFromEvent(event, timeZone);
+    const occupancy = occupancyFromEvent(event, timeZone, minHoldHours);
     if (occupancy) out.push(occupancy);
   }
   return out;
@@ -241,31 +267,51 @@ export type PaidBookingCalendarInput = {
   event_date: string | null;
   event_start_time: string | null;
   duration_hours: number | null;
+  duration_minutes?: number | null;
   experience: string | null;
   payment_mode: string | null;
+  product?: string | null;
+  resource?: string | null;
 };
 
 function packageLabel(experience: string | null): string {
   if (experience === "social") return "The Miami Social";
   if (experience === "luxe") return "The Miami Luxe";
   if (experience === "classic") return "The Miami Classic";
-  return "Photobooth";
+  if (experience === "framehaus") return "Framehaus Media";
+  if (experience === "portraits") return "Portraits";
+  if (experience === "beauty") return "Beauty Headshots";
+  if (experience === "theatrical") return "Theatrical Headshots";
+  if (experience === "headshot") return "Standard Headshots";
+  if (experience === "passport") return "Passport Photos";
+  if (experience === "acting_cj") return "Acting Class w/ CJ";
+  return experience ? "Studio session" : "Photobooth";
 }
 
 function pad2(value: string | undefined): string {
   return (value ?? "00").padStart(2, "0");
 }
 
+function eventIdFor(booking: PaidBookingCalendarInput): string {
+  const prefix = booking.product === "studio" ? "s7st" : "s7pb";
+  return `${prefix}${booking.id.replace(/-/g, "").toLowerCase()}`;
+}
+
 /**
- * Writes the booked hours onto the photobooth calendar after payment.
- * Setup/breakdown stay in availability math — they are not added to the event
- * so occupancy is not padded twice. Events we create are skipped when reading
- * holds; the bookings table remains the source of truth for paid slots.
+ * Writes the booked window onto the matching calendar after payment.
+ * Acting class seats are not written (the class already exists on CJ's calendar).
+ * Photobooth setup/breakdown stay in availability math — they are not added
+ * to the event so occupancy is not padded twice.
  */
 export async function upsertPaidBookingEvent(
   booking: PaidBookingCalendarInput,
 ): Promise<{ eventId: string; created: boolean } | null> {
-  const id = calendarId();
+  if (booking.resource === "studio_acting" || booking.experience === "acting_cj") {
+    return null;
+  }
+
+  const kind: CalendarKind = booking.product === "studio" ? "studio_photo" : "photobooth";
+  const id = calendarIdFor(kind);
   const token = await getAccessToken();
   const date = booking.event_date?.trim();
   const startTime = hhmm(booking.event_start_time);
@@ -276,10 +322,12 @@ export async function upsertPaidBookingEvent(
     return null;
   }
 
-  const duration = Number(booking.duration_hours) || 2;
+  const durationMinutes =
+    Number(booking.duration_minutes) ||
+    (Number(booking.duration_hours) ? Number(booking.duration_hours) * 60 : kind === "studio_photo" ? 90 : 120);
   const timeZone = calendarTimezone();
   const startMs = wallTimeToUtcMs(date, startTime, timeZone);
-  const endMs = startMs + duration * 60 * 60 * 1000;
+  const endMs = startMs + durationMinutes * 60 * 1000;
   const endDate = new Date(endMs);
   const endWall = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -292,10 +340,15 @@ export async function upsertPaidBookingEvent(
   const endYmd = new Intl.DateTimeFormat("en-CA", { timeZone }).format(endDate);
   const pkg = packageLabel(booking.experience);
   const who = booking.client_name?.trim() || "Client";
-  const eventId = googleEventIdForBooking(booking.id);
+  const eventId = eventIdFor(booking);
+  const durationLabel =
+    durationMinutes < 60
+      ? `${durationMinutes} min`
+      : `${Math.round(durationMinutes / 60 * 10) / 10} hour${durationMinutes === 60 ? "" : "s"}`;
+  const prefix = kind === "studio_photo" ? "Studio" : "Photobooth";
 
   const lines = [
-    `${pkg} · ${duration} hour${duration === 1 ? "" : "s"}`,
+    `${pkg} · ${durationLabel}`,
     `Client: ${who}`,
     booking.client_email ? `Email: ${booking.client_email}` : null,
     booking.client_phone ? `Phone: ${booking.client_phone}` : null,
@@ -306,7 +359,7 @@ export async function upsertPaidBookingEvent(
 
   const body = {
     id: eventId,
-    summary: `Photobooth · ${pkg} · ${who}`,
+    summary: `${prefix} · ${pkg} · ${who}`,
     description: lines.join("\n"),
     location: booking.event_location?.trim() || undefined,
     start: { dateTime: `${date}T${startTime}:00`, timeZone },

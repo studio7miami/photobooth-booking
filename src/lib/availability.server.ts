@@ -92,10 +92,16 @@ async function listBookingOccupancy(excludeBookingId?: string): Promise<Occupanc
     const select =
       "id, event_date, event_start_time, duration_hours, experience, status, signed_at";
     const [{ data: confirmed }, { data: holds, error }] = await Promise.all([
-      supabase.from("bookings").select(select).not("event_date", "is", null).in("status", [...CONFIRMED_STATUSES]),
       supabase
         .from("bookings")
         .select(select)
+        .eq("product", "photobooth")
+        .not("event_date", "is", null)
+        .in("status", [...CONFIRMED_STATUSES]),
+      supabase
+        .from("bookings")
+        .select(select)
+        .eq("product", "photobooth")
         .not("event_date", "is", null)
         .eq("status", "agreement_signed")
         .gte("signed_at", cutoff),

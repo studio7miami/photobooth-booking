@@ -1,4 +1,4 @@
-/** Mount path with no trailing slash. Empty on localhost; `/photobooth` on Vercel. */
+/** Mount path with no trailing slash. The app owns the domain root. */
 export const PUBLIC_BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
 export function publicUrl(path = "/"): string {

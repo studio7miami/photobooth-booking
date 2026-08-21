@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookedPreviewRouteImport } from './routes/booked-preview'
 import { Route as CheckoutPreviewRouteImport } from './routes/checkout-preview'
+import { Route as PhotoboothIndexRouteImport } from './routes/photobooth/index'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as PhotoboothApiPublicPaymentsWebhookRouteImport } from './routes/photobooth/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,10 +31,21 @@ const CheckoutPreviewRoute = CheckoutPreviewRouteImport.update({
   path: '/checkout-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PhotoboothIndexRoute = PhotoboothIndexRouteImport.update({
+  id: '/photobooth/',
+  path: '/photobooth/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
     path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PhotoboothApiPublicPaymentsWebhookRoute =
+  PhotoboothApiPublicPaymentsWebhookRouteImport.update({
+    id: '/photobooth/api/public/payments/webhook',
+    path: '/photobooth/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -40,20 +53,26 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/photobooth/': typeof PhotoboothIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/photobooth': typeof PhotoboothIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/photobooth/': typeof PhotoboothIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -61,26 +80,34 @@ export interface FileRouteTypes {
     | '/'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/photobooth/'
     | '/api/public/payments/webhook'
+    | '/photobooth/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/photobooth'
     | '/api/public/payments/webhook'
+    | '/photobooth/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/photobooth/'
     | '/api/public/payments/webhook'
+    | '/photobooth/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookedPreviewRoute: typeof BookedPreviewRoute
   CheckoutPreviewRoute: typeof CheckoutPreviewRoute
+  PhotoboothIndexRoute: typeof PhotoboothIndexRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  PhotoboothApiPublicPaymentsWebhookRoute: typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -106,11 +133,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/photobooth/': {
+      id: '/photobooth/'
+      path: '/photobooth'
+      fullPath: '/photobooth/'
+      preLoaderRoute: typeof PhotoboothIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
       fullPath: '/api/public/payments/webhook'
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photobooth/api/public/payments/webhook': {
+      id: '/photobooth/api/public/payments/webhook'
+      path: '/photobooth/api/public/payments/webhook'
+      fullPath: '/photobooth/api/public/payments/webhook'
+      preLoaderRoute: typeof PhotoboothApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -120,7 +161,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookedPreviewRoute: BookedPreviewRoute,
   CheckoutPreviewRoute: CheckoutPreviewRoute,
+  PhotoboothIndexRoute: PhotoboothIndexRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  PhotoboothApiPublicPaymentsWebhookRoute:
+    PhotoboothApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

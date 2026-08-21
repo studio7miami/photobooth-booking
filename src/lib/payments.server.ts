@@ -1,5 +1,6 @@
 import { CONFIRMED_STATUSES } from "@/config/booking-rules";
 import { formatCents, REQUIRE_FULL_PAYMENT_WITHIN_DAYS } from "@/config/pricing";
+import { isStudioOfferingKey, STUDIO_OFFERINGS, STUDIO_STRIPE_LOOKUP_KEY } from "@/config/studio/offerings";
 import { canStartBalancePayment, canStartPayment, type BookingStatus } from "./booking-states";
 import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
 import { isHoldActive } from "./hold";
@@ -22,7 +23,46 @@ const CATALOG_LOOKUP_KEY: Record<string, string> = {
   classic: "miami_classic_base",
   social: "miami_social_base",
   luxe: "miami_luxe_base",
+  ...STUDIO_STRIPE_LOOKUP_KEY,
 };
+
+const registeredWalletDomains = new Set<string>();
+
+/** Apple Pay (and other wallets) stay hidden until this domain is registered. */
+async function ensureWalletDomain(
+  stripe: ReturnType<typeof createStripeClient>,
+  returnUrl: string,
+): Promise<void> {
+  let domain = "";
+  try {
+    domain = new URL(returnUrl).hostname;
+  } catch {
+    return;
+  }
+  if (!domain || domain === "localhost" || registeredWalletDomains.has(domain)) return;
+
+  try {
+    const listed = await stripe.paymentMethodDomains.list({ limit: 100 });
+    const existing = listed.data.find((row) => row.domain_name === domain);
+    const record =
+      existing ?? (await stripe.paymentMethodDomains.create({ domain_name: domain }));
+    if (existing && !existing.enabled) {
+      await stripe.paymentMethodDomains.update(record.id, { enabled: true });
+    }
+    const validated = await stripe.paymentMethodDomains.validate(record.id);
+    if (validated.apple_pay.status !== "active") {
+      console.error(
+        "[payments] Apple Pay is inactive on this domain until Stripe can verify it",
+        domain,
+        validated.apple_pay.status_details?.error_message,
+      );
+      return;
+    }
+    registeredWalletDomains.add(domain);
+  } catch (error) {
+    console.error("[payments] payment method domain registration failed", error);
+  }
+}
 
 async function resolveCatalogProductId(
   stripe: ReturnType<typeof createStripeClient>,
@@ -114,8 +154,12 @@ export async function startBookingPayment(args: StartArgs): Promise<
           (Date.parse(`${eventDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000,
         )
       : Number.POSITIVE_INFINITY;
+    const experience = String(row["experience"] ?? "");
+    const depositAllowed =
+      daysOut > REQUIRE_FULL_PAYMENT_WITHIN_DAYS &&
+      (!isStudioOfferingKey(experience) || STUDIO_OFFERINGS[experience].depositEligible);
     paymentMode =
-      daysOut <= REQUIRE_FULL_PAYMENT_WITHIN_DAYS
+      !depositAllowed
         ? "full"
         : args.paymentMode === "deposit"
           ? "deposit"
@@ -139,6 +183,7 @@ export async function startBookingPayment(args: StartArgs): Promise<
         existingId: row["stripe_customer_id"],
       }),
       resolveCatalogProductId(stripe, row["experience"]),
+      ensureWalletDomain(stripe, args.returnUrl),
     ]);
 
     const session = await stripe.checkout.sessions.create(
@@ -208,7 +253,7 @@ async function syncPaidBookingCalendar(bookingId: string) {
     const { data } = await supabase
       .from("bookings")
       .select(
-        "id, status, client_name, client_email, client_phone, event_location, event_type, event_date, event_start_time, duration_hours, experience, payment_mode",
+        "id, status, client_name, client_email, client_phone, event_location, event_type, event_date, event_start_time, duration_hours, duration_minutes, experience, payment_mode, product, resource",
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -224,8 +269,11 @@ async function syncPaidBookingCalendar(bookingId: string) {
       event_date: string | null;
       event_start_time: string | null;
       duration_hours: number | null;
+      duration_minutes: number | null;
       experience: string | null;
       payment_mode: string | null;
+      product: string | null;
+      resource: string | null;
     };
     if (!CONFIRMED_STATUSES.includes(row.status as (typeof CONFIRMED_STATUSES)[number])) return;
     const { upsertPaidBookingEvent } = await import("./google-calendar.server");

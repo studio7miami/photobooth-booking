@@ -9,7 +9,10 @@ is `src/routes/__root.tsx`.
 
 | File | URL |
 | --- | --- |
-| `index.tsx` | `/` |
+| `index.tsx` | `/` (studio booking) |
+| `photobooth/index.tsx` | `/photobooth` |
+| `photobooth/api/public/payments/webhook.ts` | `/photobooth/api/public/payments/webhook` (legacy Stripe alias) |
+| `about.tsx` | `/about` |
 | `about.tsx` | `/about` |
 | `users/index.tsx` | `/users` |
 | `users/$id.tsx` | `/users/:id` (dynamic — bare `$`, no curly braces) |

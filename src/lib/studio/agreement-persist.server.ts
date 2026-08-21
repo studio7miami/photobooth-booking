@@ -1,10 +1,13 @@
-import { calculatePrice } from "@/config/pricing";
-import { formatEmail } from "./format-display";
-import type { BookingDetails } from "./booking-schema";
-import type { SignatureRecord } from "./agreement.server";
-import { assertSlotAvailable, expireStaleHolds } from "./availability.server";
-import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
-import { isHoldActive } from "./hold";
+import { STUDIO_LOCATION } from "@/config/studio/booking-rules";
+import { calculateStudioPrice, STUDIO_OFFERINGS } from "@/config/studio/offerings";
+import { formatEmail } from "@/lib/format-display";
+import type { SignatureRecord } from "@/lib/agreement.server";
+import { expireStaleHolds } from "@/lib/availability.server";
+import { getAdmin, logBookingEvent, transitionBooking } from "@/lib/booking.server";
+import { isHoldActive } from "@/lib/hold";
+import { classSessionId } from "./availability";
+import { assertActingSeatAvailable, assertPhotoSlotAvailable } from "./availability.server";
+import type { StudioBookingDetails } from "./booking-schema";
 
 function hhmm(value: string | null | undefined): string | null {
   const raw = value?.trim();
@@ -14,11 +17,12 @@ function hhmm(value: string | null | undefined): string | null {
 
 async function findOpenHold(
   supabase: Awaited<ReturnType<typeof getAdmin>>,
-  booking: BookingDetails,
+  booking: StudioBookingDetails,
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from("bookings")
     .select("id, event_start_time, signed_at")
+    .eq("product", "studio")
     .eq("event_date", booking.eventDate)
     .eq("status", "agreement_signed")
     .ilike("client_email", formatEmail(booking.clientEmail))
@@ -56,15 +60,8 @@ async function expireOtherHolds(
   }
 }
 
-/**
- * Writes the signed booking with server-recomputed pricing and the full
- * audit trail (draft → pending_agreement → agreement_signed).
- *
- * A refresh after sign must not create a second hold — the unpaid signature
- * for this email + slot is reused.
- */
-export async function persistSignedBooking(
-  booking: BookingDetails,
+export async function persistStudioSignedBooking(
+  booking: StudioBookingDetails,
   record: SignatureRecord,
 ): Promise<string> {
   const supabase = await getAdmin();
@@ -87,41 +84,51 @@ export async function persistSignedBooking(
     return existingId;
   }
 
-  await assertSlotAvailable({
-    eventDate: booking.eventDate,
-    eventStartTime: booking.eventStartTime,
-    durationHours: booking.durationHours,
-    experience: booking.experience,
+  const offering = STUDIO_OFFERINGS[booking.offering];
+  const price = calculateStudioPrice({
+    offering: booking.offering,
+    durationMinutes: booking.durationMinutes,
   });
+  const sessionId =
+    offering.resource === "studio_acting"
+      ? (booking.classSessionId ?? classSessionId(booking.eventDate, booking.eventStartTime))
+      : null;
 
-  const price = calculatePrice({
-    experience: booking.experience,
-    durationHours: booking.durationHours,
-    stationCount: booking.stationCount ?? 1,
-  });
+  if (offering.resource === "studio_acting") {
+    await assertActingSeatAvailable({
+      classSessionId: sessionId as string,
+      eventDate: booking.eventDate,
+      eventStartTime: booking.eventStartTime,
+    });
+  } else {
+    await assertPhotoSlotAvailable({
+      eventDate: booking.eventDate,
+      eventStartTime: booking.eventStartTime,
+      durationMinutes: price.totalMinutes,
+    });
+  }
 
   const { data, error } = await supabase
     .from("bookings")
     .insert({
       status: "agreement_signed",
+      product: "studio",
+      resource: offering.resource,
       client_name: booking.clientName,
       client_phone: booking.clientPhone,
       client_email: formatEmail(booking.clientEmail),
-      event_location: booking.eventLocation,
-      event_type:
-        booking.eventType === "other" && booking.eventTypeOther
-          ? `Other — ${booking.eventTypeOther}`
-          : booking.eventType,
+      client_notes: booking.clientNotes?.trim() || null,
+      event_location: booking.eventLocation || STUDIO_LOCATION,
+      event_type: offering.name,
       event_date: booking.eventDate,
       event_start_time: booking.eventStartTime,
-      duration_hours: booking.durationHours,
-      station_count: booking.stationCount ?? null,
-      experience: booking.experience,
-      product: "photobooth",
-      resource: "photobooth_kit",
+      duration_minutes: price.totalMinutes,
+      duration_hours: Math.max(1, Math.ceil(price.totalMinutes / 60)),
+      class_session_id: sessionId,
+      experience: booking.offering,
       base_cents: price.baseCents,
-      addl_hours: price.addlHours,
-      addl_rate_cents: price.addlRateCents,
+      addl_hours: price.extraSlots,
+      addl_rate_cents: price.extraRateCents,
       total_cents: price.totalCents,
       currency: "usd",
       deposit_cents: price.depositCents,
@@ -150,7 +157,7 @@ export async function persistSignedBooking(
     from: "draft",
     to: "pending_agreement",
     actor: "client",
-    meta: { experience: booking.experience, total_cents: price.totalCents },
+    meta: { experience: booking.offering, total_cents: price.totalCents },
   });
   await logBookingEvent({
     bookingId,

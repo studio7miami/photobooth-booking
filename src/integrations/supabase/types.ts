@@ -93,8 +93,10 @@ export type Database = {
           balance_payment_intent_id: string | null
           balance_status: string | null
           base_cents: number | null
+          class_session_id: string | null
           client_email: string | null
           client_name: string | null
+          client_notes: string | null
           client_phone: string | null
           concierge_agreement_sent_at: string | null
           concierge_channel: string | null
@@ -107,6 +109,7 @@ export type Database = {
           currency: string
           deposit_cents: number | null
           duration_hours: number | null
+          duration_minutes: number | null
           event_date: string | null
           event_location: string | null
           event_start_time: string | null
@@ -117,6 +120,8 @@ export type Database = {
           marketing_opt_in: boolean
           paid_at: string | null
           payment_mode: string | null
+          product: string
+          resource: string | null
           signature_value: string | null
           signed_at: string | null
           signer_ip: string | null
@@ -143,8 +148,10 @@ export type Database = {
           balance_payment_intent_id?: string | null
           balance_status?: string | null
           base_cents?: number | null
+          class_session_id?: string | null
           client_email?: string | null
           client_name?: string | null
+          client_notes?: string | null
           client_phone?: string | null
           concierge_agreement_sent_at?: string | null
           concierge_channel?: string | null
@@ -157,6 +164,7 @@ export type Database = {
           currency?: string
           deposit_cents?: number | null
           duration_hours?: number | null
+          duration_minutes?: number | null
           event_date?: string | null
           event_location?: string | null
           event_start_time?: string | null
@@ -167,6 +175,8 @@ export type Database = {
           marketing_opt_in?: boolean
           paid_at?: string | null
           payment_mode?: string | null
+          product?: string
+          resource?: string | null
           signature_value?: string | null
           signed_at?: string | null
           signer_ip?: string | null
@@ -193,8 +203,10 @@ export type Database = {
           balance_payment_intent_id?: string | null
           balance_status?: string | null
           base_cents?: number | null
+          class_session_id?: string | null
           client_email?: string | null
           client_name?: string | null
+          client_notes?: string | null
           client_phone?: string | null
           concierge_agreement_sent_at?: string | null
           concierge_channel?: string | null
@@ -207,6 +219,7 @@ export type Database = {
           currency?: string
           deposit_cents?: number | null
           duration_hours?: number | null
+          duration_minutes?: number | null
           event_date?: string | null
           event_location?: string | null
           event_start_time?: string | null
@@ -217,6 +230,8 @@ export type Database = {
           marketing_opt_in?: boolean
           paid_at?: string | null
           payment_mode?: string | null
+          product?: string
+          resource?: string | null
           signature_value?: string | null
           signed_at?: string | null
           signer_ip?: string | null

@@ -27,6 +27,7 @@ type Props = {
   eventDate?: string | undefined;
   eventStartTime?: string | undefined;
   imageUrl?: string | undefined;
+  depositEligible?: boolean | undefined;
 };
 
 export function formatLongDate(date: string) {
@@ -56,8 +57,11 @@ export function StepPayment({
   eventDate,
   eventStartTime,
   imageUrl,
+  depositEligible = true,
 }: Props) {
-  const requiresFull = eventDate ? daysUntil(eventDate) <= REQUIRE_FULL_PAYMENT_WITHIN_DAYS : false;
+  const requiresFull =
+    !depositEligible ||
+    (eventDate ? daysUntil(eventDate) <= REQUIRE_FULL_PAYMENT_WITHIN_DAYS : false);
   const [mode, setMode] = useState<PaymentMode>(requiresFull ? "full" : "deposit");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const payButtonRef = useRef<HTMLButtonElement>(null);
@@ -106,7 +110,9 @@ export function StepPayment({
 
         {requiresFull ? (
           <p className="mt-6 text-sm text-muted-foreground">
-            Your event is within {REQUIRE_FULL_PAYMENT_WITHIN_DAYS} days, so this booking is paid in full today.
+            {!depositEligible
+              ? "This session is paid in full today."
+              : `Your date is within ${REQUIRE_FULL_PAYMENT_WITHIN_DAYS} days, so this booking is paid in full today.`}
           </p>
         ) : (
           <div

@@ -2,18 +2,27 @@ import { Check } from "lucide-react";
 import { STEP_META, TOTAL_STEPS } from "@/lib/booking-schema";
 import { cn } from "@/lib/utils";
 
-export function Stepper({ step }: { step: number }) {
-  const current = STEP_META[Math.min(Math.max(step, 1), TOTAL_STEPS) - 1]!;
-  const pct = Math.round(((step - 1) / (TOTAL_STEPS - 1)) * 100);
+export type StepMeta = readonly { step: number; label: string; microcopy: string }[];
+
+export function Stepper({
+  step,
+  steps = STEP_META,
+}: {
+  step: number;
+  steps?: StepMeta;
+}) {
+  const total = steps.length || TOTAL_STEPS;
+  const current = steps[Math.min(Math.max(step, 1), total) - 1]!;
+  const pct = Math.round(((step - 1) / (total - 1)) * 100);
 
   return (
     <div
       className="min-w-0 flex-1"
       role="progressbar"
       aria-valuemin={1}
-      aria-valuemax={TOTAL_STEPS}
+      aria-valuemax={total}
       aria-valuenow={step}
-      aria-label={`${current.label}, step ${step} of ${TOTAL_STEPS}`}
+      aria-label={`${current.label}, step ${step} of ${total}`}
     >
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="relative min-w-0 flex-1">
@@ -23,7 +32,7 @@ export function Stepper({ step }: { step: number }) {
             style={{ width: `calc(84% * ${pct} / 100)` }}
           />
           <ol className="relative grid grid-cols-5">
-            {STEP_META.map((s) => {
+            {steps.map((s) => {
               const done = s.step < step;
               const active = s.step === step;
               return (

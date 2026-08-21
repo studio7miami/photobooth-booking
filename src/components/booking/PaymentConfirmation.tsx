@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
 import { EXPERIENCES, type ExperienceKey } from "@/config/pricing";
+import { isStudioOfferingKey, STUDIO_OFFERINGS } from "@/config/studio/offerings";
 import { getBookingPaymentStatus } from "@/lib/payments.functions";
 import { EXPERIENCE_IMAGES } from "./StepExperience";
+import { STUDIO_OFFERING_IMAGES } from "@/components/studio/StepOffering";
 import { formatLongDate } from "./StepPayment";
 import { ConfirmationGrouped, type ConfirmationModel } from "./confirmation-layouts";
 
@@ -58,10 +60,20 @@ function modelFromStatus(status: NonNullable<Status>, settled: boolean): Confirm
     status.experience && status.experience in EXPERIENCES
       ? (status.experience as ExperienceKey)
       : null;
+  const studioKey = isStudioOfferingKey(status.experience) ? status.experience : null;
   return {
     settled,
-    experienceName: experienceKey ? EXPERIENCES[experienceKey].name : null,
-    ...(experienceKey ? { imageUrl: EXPERIENCE_IMAGES[experienceKey].url } : {}),
+    kind: studioKey ? "studio" : "photobooth",
+    experienceName: studioKey
+      ? STUDIO_OFFERINGS[studioKey].name
+      : experienceKey
+        ? EXPERIENCES[experienceKey].name
+        : null,
+    ...(studioKey
+      ? { imageUrl: STUDIO_OFFERING_IMAGES[studioKey].url }
+      : experienceKey
+        ? { imageUrl: EXPERIENCE_IMAGES[experienceKey].url }
+        : {}),
     ...(status.event_date ? { eventDate: status.event_date } : {}),
     ...(status.event_start_time ? { eventStartTime: status.event_start_time } : {}),
     totalCents: status.total_cents ?? status.amount_paid_cents ?? 0,

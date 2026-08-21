@@ -12,7 +12,6 @@ import { Loader2, X } from "lucide-react";
 import { formatCents } from "@/config/pricing";
 import { getStripe, getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { createBookingPayment } from "@/lib/payments.functions";
-import { publicUrl } from "@/lib/public-base";
 import { cn } from "@/lib/utils";
 import { EdCaption, EdPrimaryButton } from "./EditorialCard";
 import { formatTime } from "./StepTime";
@@ -27,7 +26,9 @@ function formatLongDate(date: string) {
 export type CheckoutPaymentMode = "deposit" | "full" | "balance";
 
 export function returnUrlFor(bookingId: string): string {
-  return `${window.location.origin}${publicUrl("/")}?booking=${bookingId}&paid=1`;
+  const onPhotobooth = window.location.pathname.includes("/photobooth");
+  const path = onPhotobooth ? "/photobooth" : "/";
+  return `${window.location.origin}${path}?booking=${bookingId}&paid=1`;
 }
 
 const PAY_SHEET_APPEARANCE = {

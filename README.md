@@ -1,8 +1,11 @@
-# Studio 7 Miami — Photobooth Booking
+# Studio 7 Miami — Booking
 
-This is the public booking site for photobooth rentals. A guest can pick a package, choose a time that is actually free, sign the service agreement, and pay — without a back-and-forth over text or email to hold the date.
+Public booking for the studio and for photobooth rentals. A guest picks an offering, chooses a time that is actually free, signs the service agreement, and pays.
 
-**Live:** [book.studio7.miami/photobooth](https://book.studio7.miami/photobooth)
+**Live**
+
+- Studio sessions: [book.studio7.miami](https://book.studio7.miami/)
+- Photobooth rentals: [book.studio7.miami/photobooth](https://book.studio7.miami/photobooth)
 
 ---
 
@@ -12,9 +15,35 @@ This is the public booking site for photobooth rentals. A guest can pick a packa
 **Founder:** Seven  
 **Built by:** [TAĪSTU](https://taistu.com)
 
+---
 
+## Studio sessions (`/`)
 
-## What a guest does
+Same five-step chrome as the booth: experience → date & time → details → sign → pay. Location is always Studio 7 Miami.
+
+1. **Choose a session** — Framehaus Media, Portraits, Beauty / Theatrical / Standard headshots, Passport Photos, or Acting Class w/ CJ.
+2. **Pick date and time** — Photo sessions use open 15-minute starts, 10:00 AM – 7:00 PM Eastern, with a 15-minute buffer between bookings. Extra 30-minute time is available once a per-step rate is set in `src/config/studio/offerings.ts`. Acting class is a **group** seat in a published Saturday 2:00 PM class (capacity 8).
+3. **Your details** — Name, email, phone, optional notes.
+4. **Review & sign** — Studio agreement (`studio-v1`). Starts a **10-minute hold**.
+5. **Pay** — Offerings **$225 and up** may take a 50% deposit (full pay if the session is within 3 days). Framehaus ($165), passport ($50), and acting class ($50) are **paid in full**. Cards are not saved.
+
+Photo occupancy is a dedicated studio/photographer Google Calendar (`GOOGLE_CALENDAR_ID_STUDIO`). Acting class uses CJ's calendar (`GOOGLE_CALENDAR_ID_ACTING`) only as blocks — published class times live in config; paid seats live in the database. Photo and class can overlap.
+
+| Session | Time | Price | Pay |
+| --- | --- | --- | --- |
+| Framehaus Media | 90 min | $165 | Full |
+| Portraits | 90 min | $350 | Deposit OK |
+| Beauty Headshots | 90 min | $300 | Deposit OK |
+| Theatrical Headshots | 90 min | $300 | Deposit OK |
+| Standard Headshots | 30 min | $225 | Deposit OK |
+| Passport Photos | 15 min | $50 | Full |
+| Acting Class w/ CJ | 2 hr | $50 | Full (group seat) |
+
+After payment, photo sessions are written to the studio calendar. Acting class does **not** create one calendar event per student.
+
+---
+
+## Photobooth rentals (`/photobooth`)
 
 Five steps, in order. They cannot skip ahead, and payment stays locked until the agreement is signed.
 
@@ -28,9 +57,7 @@ If they leave mid-flow, the browser keeps a draft for **ten minutes**. After ten
 
 On success they see a confirmation: package, date and time, location, their contact details, and what they paid. A deposit booking also shows the remaining balance and the date it is due.
 
----
-
-## Packages and money
+### Packages and money
 
 | Package | Who it is for | Included time | Price |
 | --- | --- | --- | --- |
@@ -44,9 +71,7 @@ Extra hours: Classic $100/hr, Social $150/hr, Luxe $200/hr per station.
 - The deposit is **non-refundable** (the signed agreement says so).
 - Totals are always calculated on the server from these numbers. The browser display cannot be trusted as the charge amount.
 
----
-
-## How a date actually gets locked
+### How a date actually gets locked
 
 There is **one photobooth kit**. A day can take **at most two rentals**, and only if their windows do not overlap.
 
@@ -56,7 +81,7 @@ Times offered are **10:00 AM – 11:30 PM Eastern**, in 30-minute steps. Guests 
 
 A slot is treated as taken if **any** of these are true:
 
-- A **paid booking** already sits on that window.
+- A **paid photobooth booking** already sits on that window.
 - Someone **just signed** and is still inside the 10-minute pay window.
 - The photobooth **Google Calendar** already has something there (a meeting, a block, an all-day hold). Short calendar events still count as at least a **2-hour** kit hold, so a 5:00 PM meeting is treated as 5:00–7:00.
 
@@ -74,27 +99,38 @@ flowchart LR
   App[This app]
   DB[(Bookings database)]
   Stripe[Stripe]
-  Cal[Photobooth Google Calendar]
+  PhotoCal[Studio photo calendar]
+  CjCal[CJ acting calendar]
+  KitCal[Photobooth Google Calendar]
 
   Guest --> App
   App --> DB
   App --> Stripe
-  App --> Cal
+  App --> PhotoCal
+  App --> CjCal
+  App --> KitCal
   Stripe -->|webhook: payment succeeded| App
-  App -->|write paid event| Cal
-  Cal -->|busy times| App
+  App -->|write paid photo or booth event| PhotoCal
+  App -->|write paid booth event| KitCal
+  PhotoCal -->|busy times| App
+  CjCal -->|class blocks| App
+  KitCal -->|busy times| App
   DB -->|paid bookings and holds| App
 ```
 
-**This app** is the guest experience and the rules engine: packages, prices, open times, the agreement, and the pay sheet.
+**This app** is the guest experience and the rules engine: packages, prices, open times, the agreement, and the pay sheet. Studio lives at `/`; photobooth at `/photobooth`.
 
-**The bookings database (Supabase)** is the source of truth for every rental. Each row has the guest, the event, the signed agreement (including a hash of the exact text they signed), payment amounts, and status (`draft` → `agreement_signed` → `deposit_paid` or `paid_in_full` → `confirmed`).
+**The bookings database (Supabase)** is the source of truth. Each row has `product` (`studio` or `photobooth`) and `resource` (`studio_photo`, `studio_acting`, or `photobooth_kit`), the guest, the signed agreement (including a hash of the exact text they signed), payment amounts, and status (`draft` → `agreement_signed` → `deposit_paid` or `paid_in_full` → `confirmed`).
 
-**Stripe** takes the card (and Apple Pay / Link when the domain is verified). After a successful charge it emails the **payment receipt**, then tells this app via webhook. The site does not mark a booking paid from the browser — only from Stripe.
+**Stripe** takes the card (and Apple Pay / Link when the domain is verified). After a successful charge it emails the **payment receipt**, then tells this app via webhook. Preferred URL: `https://book.studio7.miami/api/public/payments/webhook?env=live`. The old `/photobooth/api/public/payments/webhook` path is kept as an alias.
 
-**Google Calendar** (`photobooth@studio7.miami`) is how Studio 7 blocks the kit in real life. The app **reads** that calendar so existing holds and meetings keep those times off the public site. After payment it **writes** an event for the booked hours (not the extra setup/breakdown — those only exist in availability math, so they are not double-counted). Events this app creates are tagged and skipped when reading occupancy, so a paid booking is not counted twice. The guest is **not** invited to the calendar event.
+**Google Calendar**
 
-Together: calendar + database decide what a new guest can pick. Stripe decides when a pick becomes a booking. The calendar then shows the founder the new job.
+- Photobooth kit: `GOOGLE_CALENDAR_ID` (existing).
+- Studio photo: `GOOGLE_CALENDAR_ID_STUDIO`.
+- Acting class blocks: `GOOGLE_CALENDAR_ID_ACTING`.
+
+The guest is **not** invited to calendar events.
 
 ---
 
@@ -105,7 +141,7 @@ Together: calendar + database decide what a new guest can pick. Stripe decides w
 | Payment receipt | Stripe, to the email they entered |
 | Confirmation on screen | This app, immediately after Stripe confirms |
 | Agreement copy and event details in the inbox | The Studio 7 concierge (not this app) |
-| Block on the photobooth calendar | This app, as soon as payment is confirmed |
+| Block on the matching calendar | This app, as soon as payment is confirmed (photo and photobooth only) |
 
 A deposit booking is confirmed with the remaining balance shown and a due date. Collecting that remaining balance is not a button on the confirmation screen today.
 
@@ -115,11 +151,15 @@ A deposit booking is confirmed with the remaining balance shown and a due date. 
 
 You do not need an admin panel inside this site.
 
-- **New paid jobs** appear on the photobooth Google Calendar with package, guest name, contact, and booking id.
+- **New paid photo sessions** appear on the studio photo Google Calendar.
+- **New paid photobooth jobs** appear on the photobooth Google Calendar.
+- **Acting class seats** live on the booking record (capacity is counted in the app). Block a week on CJ's calendar to hide that class.
 - **Money** is in the Stripe Dashboard (Successful payments). Receipts go out from Stripe.
-- **The signed agreement** lives on the booking record (who signed, when, from which IP, and a hash of the contract text).
-- **To block a day or a window** that should not be bookable, put it on the photobooth calendar. The public site will treat it as occupied.
-- **To change a price, included hours, deposit percent, hold length, or setup/breakdown**, that is a config change in this project — not something a guest can override.
+- **The signed agreement** lives on the booking record.
+- **To block a photo window**, put it on the studio photo calendar. **To block the booth**, put it on the photobooth calendar.
+- **To change a price, hours, deposit rules, hold length, class schedule, or buffer**, that is a config change in this project.
+
+Apply the latest Supabase migration so `product`, `resource`, `duration_minutes`, `class_session_id`, and `client_notes` exist on `bookings`.
 
 ---
 

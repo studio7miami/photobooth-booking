@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { IMAGES } from "@/assets/images";
-import { Stepper } from "./Stepper";
+import { Stepper, type StepMeta } from "./Stepper";
 
 type StepShellProps = {
   step: number;
@@ -11,6 +11,7 @@ type StepShellProps = {
   aside?: ReactNode;
   footer?: ReactNode;
   onBack?: () => void;
+  stepLabels?: StepMeta;
 };
 
 export function StepShell({
@@ -21,6 +22,7 @@ export function StepShell({
   aside,
   footer,
   onBack,
+  stepLabels,
 }: StepShellProps) {
   return (
     <div className="flex min-h-svh flex-col">
@@ -31,7 +33,7 @@ export function StepShell({
             alt="Studio 7 Miami"
             className="h-11 w-auto shrink-0 object-contain sm:h-12 lg:h-14"
           />
-          <Stepper step={step} />
+          <Stepper step={step} {...(stepLabels ? { steps: stepLabels } : {})} />
         </div>
       </header>
 

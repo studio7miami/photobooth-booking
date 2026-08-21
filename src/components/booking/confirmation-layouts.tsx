@@ -11,6 +11,8 @@ import { formatTime } from "./StepTime";
 export const CONFIRMATION_TITLE = "You're all set";
 export const CONFIRMATION_BODY =
   "Your date is secured and we look forward to bringing the booth to your event. Your agreement, receipt, and event details will land in your inbox soon.";
+export const STUDIO_CONFIRMATION_BODY =
+  "Your session is booked. Your agreement, receipt, and details will land in your inbox soon.";
 
 export type ConfirmationModel = {
   settled: boolean;
@@ -27,6 +29,7 @@ export type ConfirmationModel = {
   clientEmail?: string | undefined;
   clientPhone?: string | undefined;
   eventLocation?: string | undefined;
+  kind?: "photobooth" | "studio";
 };
 
 function Logo() {
@@ -72,7 +75,9 @@ function Header({ model }: { model: ConfirmationModel }) {
       </div>
       <p className="mt-3 text-sm leading-snug text-muted-foreground">
         {model.settled
-          ? CONFIRMATION_BODY
+          ? model.kind === "studio"
+            ? STUDIO_CONFIRMATION_BODY
+            : CONFIRMATION_BODY
           : "We're waiting for the payment confirmation from our processor. This usually takes a few seconds."}
       </p>
     </>

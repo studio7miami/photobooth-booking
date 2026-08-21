@@ -3,52 +3,57 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
 import { INACTIVITY_MINUTES } from "@/config/booking-rules";
+import { STUDIO_LOCATION } from "@/config/studio/booking-rules";
 import {
-  EXPERIENCES,
-  calculatePrice,
-  type ExperienceKey,
-} from "@/config/pricing";
+  calculateStudioPrice,
+  STUDIO_OFFERINGS,
+  type StudioOfferingKey,
+} from "@/config/studio/offerings";
+import { renderStudioAgreement, STUDIO_CONSENT_LABEL } from "@/config/studio/agreement";
 import {
-  bookingDetailsSchema,
-  stepDetailsSchema,
-  stepExperienceSchema,
-  stepTimeSchema,
-  type BookingDetails,
-  type BookingDraft,
-} from "@/lib/booking-schema";
-import { finalizeSignatureSchema } from "@/lib/agreement-schema";
-import { finalizeSignature } from "@/lib/agreement.functions";
+  studioBookingDetailsSchema,
+  studioDetailsSchema,
+  studioOfferingSchema,
+  studioTimeSchema,
+  STUDIO_STEP_META,
+  type StudioBookingDraft,
+} from "@/lib/studio/booking-schema";
+import { finalizeStudioSignatureSchema } from "@/lib/studio/agreement-schema";
+import { finalizeStudioSignature } from "@/lib/studio/agreement.functions";
 import { releaseHold as releaseHoldFn } from "@/lib/availability.functions";
-import { clearDraft, loadDraft, saveDraft, touchDraft, type StoredSigned } from "@/lib/booking-draft";
+import {
+  clearStudioDraft,
+  loadStudioDraft,
+  saveStudioDraft,
+  touchStudioDraft,
+  type StoredSigned,
+} from "@/lib/studio/booking-draft";
 import { isHoldActive } from "@/lib/hold";
 import { getStripe } from "@/lib/stripe";
-import { StepShell } from "./StepShell";
-import { EXPERIENCE_IMAGES, StepExperience } from "./StepExperience";
-import { StepTime } from "./StepTime";
-import { StepDetails } from "./StepDetails";
-import { StepAgreement, CheckRow, type AgreementValues } from "./StepAgreement";
-import { StepPayment } from "./StepPayment";
-import { PaymentConfirmation } from "./PaymentConfirmation";
-
-import { EventGlance } from "./EventGlance";
-import { HoldTimer } from "./HoldTimer";
+import { StepShell } from "@/components/booking/StepShell";
+import { StepAgreement, CheckRow, type AgreementValues } from "@/components/booking/StepAgreement";
+import { StepPayment } from "@/components/booking/StepPayment";
+import { PaymentConfirmation } from "@/components/booking/PaymentConfirmation";
+import { HoldTimer } from "@/components/booking/HoldTimer";
+import { StepOffering, STUDIO_OFFERING_IMAGES } from "./StepOffering";
+import { StepStudioTime } from "./StepTime";
+import { StepStudioDetails } from "./StepDetails";
+import { SessionGlance } from "./SessionGlance";
 
 type Errors = Record<string, string | undefined>;
 
-type SignedRecord = StoredSigned;
-
 const COPY = [
   {
-    title: "Book your experience",
-    supporting: "Select the setup that fits your event and vision.",
+    title: "Book your session",
+    supporting: "Portraits, headshots, passport photos, and class — pick what you need.",
   },
   {
     title: "Pick your time",
-    supporting: "Tell us when the room fills up. Pricing updates as you go.",
+    supporting: "Only open times are shown. Pricing updates if you add extra time.",
   },
   {
-    title: "Event information",
-    supporting: "The essentials so our team can plan your load-in and setup.",
+    title: "Your details",
+    supporting: "The essentials so we know who we're seeing.",
   },
   {
     title: "Review & sign",
@@ -64,32 +69,30 @@ const LAST_STEP = 5;
 const SIGN_STEP = 4;
 const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 
-export function BookingFlow() {
+export function StudioBookingFlow() {
   const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(1);
-  const [values, setValues] = useState<BookingDraft>({});
+  const [values, setValues] = useState<StudioBookingDraft>({});
   const [agreement, setAgreement] = useState<AgreementValues>({});
   const [errors, setErrors] = useState<Errors>({});
   const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [addressLoading, setAddressLoading] = useState(false);
-  const [signed, setSigned] = useState<SignedRecord | null>(null);
+  const [signed, setSigned] = useState<StoredSigned | null>(null);
   const [paidBookingId, setPaidBookingId] = useState<string | null>(null);
 
-  const sign = useServerFn(finalizeSignature);
+  const sign = useServerFn(finalizeStudioSignature);
   const releaseUnsignedHold = useServerFn(releaseHoldFn);
 
   useEffect(() => {
     if (step >= SIGN_STEP) void getStripe();
   }, [step]);
 
-  // Resume an autosaved draft (client-only).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const returning = params.get("booking");
     if (returning && params.get("paid")) {
       setPaidBookingId(returning);
-      clearDraft();
+      clearStudioDraft();
       setHydrated(true);
       return;
     }
@@ -98,11 +101,11 @@ export function BookingFlow() {
       setHydrated(true);
       return;
     }
-    const draft = loadDraft();
+    const draft = loadStudioDraft();
     if (draft) {
       const v = { ...draft.values };
-      if (v.experience && !EXPERIENCES[v.experience]) {
-        delete v.experience;
+      if (v.offering && !STUDIO_OFFERINGS[v.offering]) {
+        delete v.offering;
       }
       setValues(v);
       if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
@@ -116,11 +119,10 @@ export function BookingFlow() {
     setHydrated(true);
   }, []);
 
-  // Autosave on every change once hydrated.
   useEffect(() => {
     if (!hydrated) return;
     if (Object.keys(values).length === 0) return;
-    saveDraft(step, values, { signed });
+    saveStudioDraft(step, values, { signed });
   }, [hydrated, step, values, signed]);
 
   useEffect(() => {
@@ -133,7 +135,7 @@ export function BookingFlow() {
   const startOver = useCallback(
     (reason: "idle" | "hold") => {
       const holdId = signed?.booking_id;
-      clearDraft();
+      clearStudioDraft();
       setStep(1);
       setValues({});
       setAgreement({});
@@ -163,7 +165,7 @@ export function BookingFlow() {
       lastActivity = Date.now();
       if (lastActivity - lastTouch < 15_000) return;
       lastTouch = lastActivity;
-      touchDraft();
+      touchStudioDraft();
     };
     const maybeReset = () => {
       if (!flowActiveRef.current) return;
@@ -187,29 +189,45 @@ export function BookingFlow() {
     };
   }, [hydrated, paidBookingId]);
 
-  const patch = (p: BookingDraft) => {
+  const patch = (p: StudioBookingDraft) => {
     setValues((v) => ({ ...v, ...p }));
     setErrors({});
-    if (signed) {
-      setSigned(null);
-    }
+    if (signed) setSigned(null);
   };
 
   const price = useMemo(() => {
-    if (!values.experience) return null;
-    const tier = EXPERIENCES[values.experience];
+    if (!values.offering) return null;
+    const tier = STUDIO_OFFERINGS[values.offering];
     if (!tier) return null;
-    return calculatePrice({
-      experience: values.experience,
-      durationHours: values.durationHours ?? tier.baseHours,
-      stationCount: values.stationCount ?? 1,
+    return calculateStudioPrice({
+      offering: values.offering,
+      durationMinutes: values.durationMinutes ?? tier.baseMinutes,
     });
-  }, [values.experience, values.durationHours, values.stationCount]);
+  }, [values.offering, values.durationMinutes]);
 
   const fullBooking = useMemo(() => {
-    const result = bookingDetailsSchema.safeParse(values);
-    return result.success ? (result.data as BookingDetails) : null;
+    const result = studioBookingDetailsSchema.safeParse({
+      ...values,
+      eventLocation: values.eventLocation || STUDIO_LOCATION,
+    });
+    return result.success ? result.data : null;
   }, [values]);
+
+  const renderedAgreement = useMemo(() => {
+    if (!fullBooking) return null;
+    return renderStudioAgreement({
+      offering: fullBooking.offering,
+      durationMinutes: fullBooking.durationMinutes,
+      clientName: fullBooking.clientName,
+      clientPhone: fullBooking.clientPhone,
+      clientEmail: fullBooking.clientEmail,
+      eventLocation: fullBooking.eventLocation,
+      eventDate: fullBooking.eventDate,
+      eventStartTime: fullBooking.eventStartTime,
+      clientNotes: fullBooking.clientNotes,
+      classSessionId: fullBooking.classSessionId,
+    });
+  }, [fullBooking]);
 
   const copy = COPY[Math.min(step, LAST_STEP) - 1]!;
 
@@ -217,17 +235,17 @@ export function BookingFlow() {
     const next: Errors = {};
     for (const issue of issues) {
       const key = String(issue.path[0] ?? "form");
-      if (!next[key]) next[key] = issue.message; // keep the first, most relevant message
+      if (!next[key]) next[key] = issue.message;
     }
     return next;
   }
 
   async function submitSignature() {
     if (!fullBooking) {
-      toast("Some event details are missing — please step back and complete them.");
+      toast("Some details are missing — please step back and complete them.");
       return;
     }
-    const parsed = finalizeSignatureSchema.safeParse({
+    const parsed = finalizeStudioSignatureSchema.safeParse({
       booking: fullBooking,
       signerName: agreement.signerName ?? "",
       signatureValue: agreement.signatureValue ?? "",
@@ -255,14 +273,14 @@ export function BookingFlow() {
       };
       setSigned(signedRecord);
       setStep(5);
-      saveDraft(5, values, { signed: signedRecord });
+      saveStudioDraft(5, values, { signed: signedRecord });
       setErrors({});
       window.scrollTo({ top: 0, behavior: "smooth" });
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       toast(
-        message.includes("available")
+        message.includes("available") || message.includes("full")
           ? message
           : "We couldn't record your signature. Please try again.",
       );
@@ -284,27 +302,26 @@ export function BookingFlow() {
     if (step === LAST_STEP) return;
 
     const schema =
-      step === 1 ? stepExperienceSchema : step === 2 ? stepTimeSchema : stepDetailsSchema;
+      step === 1 ? studioOfferingSchema : step === 2 ? studioTimeSchema : studioDetailsSchema;
 
     const input =
       step === 1
-        ? { experience: values.experience }
+        ? { offering: values.offering }
         : step === 2
           ? {
               eventDate: values.eventDate ?? "",
               eventStartTime: values.eventStartTime ?? "",
-              durationHours:
-                values.durationHours ??
-                EXPERIENCES[values.experience as ExperienceKey]?.baseHours ??
-                2,
-              stationCount: values.stationCount ?? null,
+              durationMinutes:
+                values.durationMinutes ??
+                STUDIO_OFFERINGS[values.offering as StudioOfferingKey]?.baseMinutes ??
+                90,
+              ...(values.classSessionId ? { classSessionId: values.classSessionId } : {}),
             }
           : {
               clientName: values.clientName ?? "",
               clientPhone: values.clientPhone ?? "",
               clientEmail: values.clientEmail ?? "",
-              eventLocation: values.eventLocation ?? "",
-              eventType: values.eventType ?? "",
+              clientNotes: values.clientNotes,
             };
 
     if (step === 3 && !agreement.detailsConfirmed) {
@@ -315,7 +332,7 @@ export function BookingFlow() {
     const result = schema.safeParse(input);
     if (!result.success) {
       setErrors(collectIssues(result.error.issues));
-      if (step === 1) toast("Choose an experience to continue.");
+      if (step === 1) toast("Choose a session to continue.");
       return;
     }
 
@@ -339,11 +356,11 @@ export function BookingFlow() {
 
   const canAdvance =
     step === 1
-      ? Boolean(values.experience)
+      ? Boolean(values.offering)
       : step === 2
         ? Boolean(values.eventDate && values.eventStartTime)
         : step === 3
-          ? !addressLoading
+          ? true
           : step === 4
             ? !submitting
             : step === 5
@@ -351,12 +368,10 @@ export function BookingFlow() {
               : true;
 
   const glanceProps = {
-    experience: values.experience,
+    offering: values.offering,
     eventDate: values.eventDate,
     eventStartTime: values.eventStartTime,
-    durationHours: values.durationHours,
-    stationCount: values.stationCount,
-    ...(step >= 4 && values.eventLocation ? { eventLocation: values.eventLocation } : {}),
+    durationMinutes: values.durationMinutes,
     ...(price ? { price } : {}),
     onContinue: validateAndAdvance,
     disabled: !canAdvance,
@@ -374,11 +389,14 @@ export function BookingFlow() {
             : "Continue",
   };
 
+  const offering = values.offering ? STUDIO_OFFERINGS[values.offering] : null;
+
   return (
     <StepShell
       step={step}
       title={copy.title}
       supporting={copy.supporting}
+      stepLabels={STUDIO_STEP_META}
       {...(step > 1
         ? {
             onBack: () => {
@@ -387,34 +405,27 @@ export function BookingFlow() {
             },
           }
         : {})}
-      {...(step > 1 ? { aside: <EventGlance {...glanceProps} /> } : {})}
-      footer={<EventGlance {...glanceProps} compact />}
+      {...(step > 1 ? { aside: <SessionGlance {...glanceProps} /> } : {})}
+      footer={<SessionGlance {...glanceProps} compact />}
     >
       {step === 1 ? (
-        <div className="space-y-6">
-          <StepExperience
-            {...(values.experience ? { value: values.experience } : {})}
-            onChange={(experience) =>
-              patch({
-                experience,
-                durationHours: EXPERIENCES[experience].baseHours,
-                stationCount: EXPERIENCES[experience].perStation ? (values.stationCount ?? 1) : null,
-              })
-            }
-          />
-          <p className="text-sm text-muted-foreground">
-            Looking for portraits or a studio session?{" "}
-            <a href="/" className="underline underline-offset-4 hover:text-foreground">
-              Book the studio
-            </a>
-            .
-          </p>
-        </div>
+        <StepOffering
+          {...(values.offering ? { value: values.offering } : {})}
+          onChange={(next) =>
+            patch({
+              offering: next,
+              durationMinutes: STUDIO_OFFERINGS[next].baseMinutes,
+              eventDate: undefined,
+              eventStartTime: undefined,
+              classSessionId: undefined,
+            })
+          }
+        />
       ) : null}
 
-      {step === 2 && values.experience ? (
-        <StepTime
-          experience={values.experience}
+      {step === 2 && values.offering ? (
+        <StepStudioTime
+          offering={values.offering}
           values={values}
           errors={errors}
           onChange={patch}
@@ -424,12 +435,7 @@ export function BookingFlow() {
 
       {step === 3 ? (
         <div className="space-y-6">
-          <StepDetails
-            values={values}
-            errors={errors}
-            onChange={patch}
-            onAddressLoadingChange={setAddressLoading}
-          />
+          <StepStudioDetails values={values} errors={errors} onChange={patch} />
           <CheckRow
             checked={Boolean(agreement.detailsConfirmed)}
             onToggle={() => {
@@ -442,22 +448,25 @@ export function BookingFlow() {
       ) : null}
 
       {step === 4 ? (
-        fullBooking ? (
-          <div className="space-y-6">
-            <StepAgreement
-              booking={fullBooking}
-              values={agreement}
-              errors={errors}
-              onChange={(p) => {
-                setAgreement((a) => ({ ...a, ...p }));
-                setErrors({});
-              }}
-            />
-          </div>
+        fullBooking && renderedAgreement ? (
+          <StepAgreement
+            values={agreement}
+            errors={errors}
+            rendered={renderedAgreement}
+            consentLabel={STUDIO_CONSENT_LABEL}
+            marketingPrompt={
+              offering?.resource === "studio_acting"
+                ? "May we mention this class in Studio 7 recaps and social channels? Declining does not affect your seat."
+                : "May we feature images from your session in the Studio 7 portfolio and social channels? Declining does not affect your service."
+            }
+            onChange={(p) => {
+              setAgreement((a) => ({ ...a, ...p }));
+              setErrors({});
+            }}
+          />
         ) : (
           <p className="soft-card rounded-[24px] border border-border p-6 text-sm text-muted-foreground">
-            Some event details are still missing. Step back and complete them to see your
-            agreement.
+            Some details are still missing. Step back and complete them to see your agreement.
           </p>
         )
       ) : null}
@@ -465,13 +474,19 @@ export function BookingFlow() {
       {step === 5 ? (
         signed ? (
           <div className="space-y-6">
-            <SignedReceipt record={signed} onHoldExpired={() => startOver("hold")} />
+            <div className="soft-inset flex items-start gap-3 rounded-[16px] border border-border p-5">
+              <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <p className="text-sm text-muted-foreground">
+                <HoldTimer signedAt={signed.signed_at} onExpired={() => startOver("hold")} />
+              </p>
+            </div>
             <StepPayment
               bookingId={signed.booking_id}
-              {...(values.experience && EXPERIENCES[values.experience]
+              {...(offering
                 ? {
-                    experienceName: EXPERIENCES[values.experience].name,
-                    imageUrl: EXPERIENCE_IMAGES[values.experience].url,
+                    experienceName: offering.name,
+                    imageUrl: STUDIO_OFFERING_IMAGES[offering.key].url,
+                    depositEligible: offering.depositEligible,
                   }
                 : {})}
               {...(values.eventDate ? { eventDate: values.eventDate } : {})}
@@ -489,22 +504,5 @@ export function BookingFlow() {
         )
       ) : null}
     </StepShell>
-  );
-}
-
-function SignedReceipt({
-  record,
-  onHoldExpired,
-}: {
-  record: SignedRecord;
-  onHoldExpired: () => void;
-}) {
-  return (
-    <div className="soft-inset flex items-start gap-3 rounded-[16px] border border-border p-5">
-      <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <p className="text-sm text-muted-foreground">
-        <HoldTimer signedAt={record.signed_at} onExpired={onHoldExpired} />
-      </p>
-    </div>
   );
 }

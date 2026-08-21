@@ -1,29 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IMAGES } from "@/assets/images";
-import { BookingFlow } from "@/components/booking/BookingFlow";
+import { StudioBookingFlow } from "@/components/studio/StudioBookingFlow";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Book Your Experience" },
+      { title: "Book Studio 7 Miami" },
       {
         name: "description",
         content:
-          "Book Studio 7 Miami's photo booth in minutes. Choose your experience, pick your date, sign, and secure it with a deposit.",
+          "Book portraits, headshots, passport photos, and acting class at Studio 7 Miami. Pick a session, sign, and pay.",
       },
-      { property: "og:title", content: "Book Your Experience" },
+      { property: "og:title", content: "Book Studio 7 Miami" },
       {
         property: "og:description",
-        content:
-          "Choose your experience, pick your date, and lock in your event with Studio 7 Miami.",
+        content: "Portraits, headshots, passport photos, and class — book your studio session.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: IMAGES.og },
       { property: "og:image:width", content: "1024" },
       { property: "og:image:height", content: "409" },
-      { property: "og:image:alt", content: "Studio 7 Miami photobooth" },
+      { property: "og:image:alt", content: "Studio 7 Miami" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Book Your Experience" },
+      { name: "twitter:title", content: "Book Studio 7 Miami" },
       { name: "twitter:image", content: IMAGES.og },
     ],
   }),
@@ -31,5 +30,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <BookingFlow />;
+  return <StudioBookingFlow />;
 }

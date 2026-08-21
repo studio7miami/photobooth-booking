@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Check } from "lucide-react";
 
-import { CONSENT_LABEL, renderAgreement, type AgreementVars } from "@/config/agreement";
+import { CONSENT_LABEL, renderAgreement, type AgreementVars, type RenderedAgreement } from "@/config/agreement";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -22,14 +22,26 @@ export function StepAgreement({
   errors,
   onChange,
   onEditDetails,
+  rendered,
+  consentLabel,
+  marketingPrompt,
 }: {
-  booking: AgreementVars;
+  booking?: AgreementVars | undefined;
   values: AgreementValues;
   errors: Record<string, string | undefined>;
   onChange: (patch: AgreementValues) => void;
   onEditDetails?: (() => void) | undefined;
+  rendered?: RenderedAgreement | undefined;
+  consentLabel?: string | undefined;
+  marketingPrompt?: string | undefined;
 }) {
-  const agreement = useMemo(() => renderAgreement(booking), [booking]);
+  const agreement = useMemo(() => {
+    if (rendered) return rendered;
+    if (!booking) {
+      return { version: "", title: "", summary: [], sections: [], text: "" } satisfies RenderedAgreement;
+    }
+    return renderAgreement(booking);
+  }, [booking, rendered]);
   void onEditDetails;
 
   return (
@@ -78,7 +90,7 @@ export function StepAgreement({
           <CheckRow
             checked={Boolean(values.consent)}
             onToggle={() => onChange({ consent: !values.consent })}
-            label={CONSENT_LABEL}
+            label={consentLabel ?? CONSENT_LABEL}
             required
           />
           <FieldError message={errors["consent"]} />
@@ -87,8 +99,8 @@ export function StepAgreement({
         <div>
           <p className="label-caps text-[10px] text-muted-foreground">Marketing permission</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            May we feature photos from your event in the Studio 7 portfolio and social channels?
-            Declining does not affect your service.
+            {marketingPrompt ??
+              "May we feature selected images or mentions in the Studio 7 portfolio and social channels? Declining does not affect your service."}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             {[
