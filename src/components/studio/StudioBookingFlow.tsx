@@ -9,17 +9,23 @@ import {
   STUDIO_OFFERINGS,
   type StudioOfferingKey,
 } from "@/config/studio/offerings";
-import { renderStudioAgreement, STUDIO_CONSENT_LABEL } from "@/config/studio/agreement";
+import {
+  renderStudioAgreement,
+  STUDIO_CONSENT_LABEL,
+  STUDIO_RENTAL_CONSENT_LABEL,
+} from "@/config/studio/agreement";
 import {
   studioBookingDetailsSchema,
   studioDetailsSchema,
   studioOfferingSchema,
   studioTimeSchema,
+  STUDIO_CLASS_STEP_META,
   STUDIO_STEP_META,
+  skipsStudioAgreement,
   type StudioBookingDraft,
 } from "@/lib/studio/booking-schema";
 import { finalizeStudioSignatureSchema } from "@/lib/studio/agreement-schema";
-import { finalizeStudioSignature } from "@/lib/studio/agreement.functions";
+import { createStudioClassHold, finalizeStudioSignature } from "@/lib/studio/agreement.functions";
 import { releaseHold as releaseHoldFn } from "@/lib/availability.functions";
 import {
   clearStudioDraft,
@@ -45,7 +51,8 @@ type Errors = Record<string, string | undefined>;
 const COPY = [
   {
     title: "Book your session",
-    supporting: "Portraits, headshots, passport photos, and class — pick what you need.",
+    supporting:
+      "Studio rentals, portraits, sports media, headshots, and class — pick what you need.",
   },
   {
     title: "Pick your time",
@@ -67,6 +74,7 @@ const COPY = [
 
 const LAST_STEP = 5;
 const SIGN_STEP = 4;
+const CLASS_LAST_STEP = 4;
 const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 
 export function StudioBookingFlow() {
@@ -81,11 +89,15 @@ export function StudioBookingFlow() {
   const [paidBookingId, setPaidBookingId] = useState<string | null>(null);
 
   const sign = useServerFn(finalizeStudioSignature);
+  const holdClassSeat = useServerFn(createStudioClassHold);
   const releaseUnsignedHold = useServerFn(releaseHoldFn);
+  const skipAgreement = skipsStudioAgreement(values.offering);
+  const lastStep = skipAgreement ? CLASS_LAST_STEP : LAST_STEP;
+  const paymentStep = lastStep;
 
   useEffect(() => {
-    if (step >= SIGN_STEP) void getStripe();
-  }, [step]);
+    if (step >= (skipAgreement ? 3 : SIGN_STEP)) void getStripe();
+  }, [step, skipAgreement]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -96,7 +108,10 @@ export function StudioBookingFlow() {
       setHydrated(true);
       return;
     }
-    if (import.meta.env.DEV && (params.get("preview") === "booked" || params.get("preview") === "deposit")) {
+    if (
+      import.meta.env.DEV &&
+      (params.get("preview") === "booked" || params.get("preview") === "deposit")
+    ) {
       setPaidBookingId(params.get("preview") === "deposit" ? "preview-deposit" : "preview");
       setHydrated(true);
       return;
@@ -108,11 +123,12 @@ export function StudioBookingFlow() {
         delete v.offering;
       }
       setValues(v);
+      const resumeSkipsAgreement = skipsStudioAgreement(v.offering);
       if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
         setSigned(draft.signed);
-        setStep(5);
+        setStep(resumeSkipsAgreement ? CLASS_LAST_STEP : LAST_STEP);
       } else {
-        setStep(Math.min(Math.max(draft.step, 1), SIGN_STEP));
+        setStep(Math.min(Math.max(draft.step, 1), resumeSkipsAgreement ? 3 : SIGN_STEP));
       }
       setResumed(true);
     }
@@ -155,7 +171,8 @@ export function StudioBookingFlow() {
   const startOverRef = useRef(startOver);
   startOverRef.current = startOver;
   const flowActiveRef = useRef(false);
-  flowActiveRef.current = Boolean(paidBookingId) || step > 1 || Object.keys(values).length > 0 || Boolean(signed);
+  flowActiveRef.current =
+    Boolean(paidBookingId) || step > 1 || Object.keys(values).length > 0 || Boolean(signed);
 
   useEffect(() => {
     if (!hydrated || paidBookingId) return;
@@ -226,10 +243,23 @@ export function StudioBookingFlow() {
       eventStartTime: fullBooking.eventStartTime,
       clientNotes: fullBooking.clientNotes,
       classSessionId: fullBooking.classSessionId,
+      shooterId: fullBooking.shooterId,
+      shooterName: fullBooking.shooterName,
     });
   }, [fullBooking]);
 
-  const copy = COPY[Math.min(step, LAST_STEP) - 1]!;
+  const offeringForCopy = values.offering ? STUDIO_OFFERINGS[values.offering] : null;
+  const copy = (() => {
+    const copyStep = skipAgreement && step === paymentStep ? LAST_STEP : Math.min(step, LAST_STEP);
+    const base = COPY[copyStep - 1]!;
+    if (step === 2 && offeringForCopy?.group === "rentals") {
+      return {
+        title: "Pick your time",
+        supporting: "Only open times are shown. Add hours to update the total.",
+      };
+    }
+    return base;
+  })();
 
   function collectIssues(issues: { path: PropertyKey[]; message: string }[]): Errors {
     const next: Errors = {};
@@ -238,6 +268,55 @@ export function StudioBookingFlow() {
       if (!next[key]) next[key] = issue.message;
     }
     return next;
+  }
+
+  function toStoredSigned(record: {
+    booking_id: string;
+    total_cents: number;
+    signed_at: string;
+    deposit_cents: number;
+    balance_cents: number;
+    balance_due_date: string;
+    agreement_template_version?: string;
+    agreement_content_hash?: string;
+  }): StoredSigned {
+    return {
+      booking_id: record.booking_id,
+      total_cents: record.total_cents,
+      signed_at: record.signed_at,
+      agreement_template_version: record.agreement_template_version ?? "",
+      agreement_content_hash: record.agreement_content_hash ?? "",
+      deposit_cents: record.deposit_cents,
+      balance_cents: record.balance_cents,
+      balance_due_date: record.balance_due_date,
+    };
+  }
+
+  async function submitClassHold() {
+    if (!fullBooking) {
+      toast("Some details are missing — please step back and complete them.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const record = await holdClassSeat({ data: { booking: fullBooking } });
+      const signedRecord = toStoredSigned(record);
+      setSigned(signedRecord);
+      setStep(CLASS_LAST_STEP);
+      saveStudioDraft(CLASS_LAST_STEP, values, { signed: signedRecord });
+      setErrors({});
+      toast("Seat held. Payment is next.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast(
+        message.includes("available") || message.includes("full")
+          ? message
+          : "We couldn't hold this seat. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function submitSignature() {
@@ -250,7 +329,10 @@ export function StudioBookingFlow() {
       signerName: agreement.signerName ?? "",
       signatureValue: agreement.signatureValue ?? "",
       consent: agreement.consent ?? false,
-      marketingOptIn: agreement.marketingOptIn ?? false,
+      marketingOptIn:
+        STUDIO_OFFERINGS[fullBooking.offering].group === "rentals"
+          ? false
+          : (agreement.marketingOptIn ?? false),
     });
     if (!parsed.success) {
       setErrors(collectIssues(parsed.error.issues));
@@ -261,21 +343,11 @@ export function StudioBookingFlow() {
     setSubmitting(true);
     try {
       const record = await sign({ data: parsed.data });
-      const signedRecord: StoredSigned = {
-        booking_id: record.booking_id,
-        total_cents: record.total_cents,
-        signed_at: record.signed_at,
-        agreement_template_version: record.agreement_template_version,
-        agreement_content_hash: record.agreement_content_hash,
-        deposit_cents: record.deposit_cents,
-        balance_cents: record.balance_cents,
-        balance_due_date: record.balance_due_date,
-      };
+      const signedRecord = toStoredSigned(record);
       setSigned(signedRecord);
-      setStep(5);
-      saveStudioDraft(5, values, { signed: signedRecord });
+      setStep(LAST_STEP);
+      saveStudioDraft(LAST_STEP, values, { signed: signedRecord });
       setErrors({});
-      window.scrollTo({ top: 0, behavior: "smooth" });
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -290,16 +362,15 @@ export function StudioBookingFlow() {
   }
 
   function validateAndAdvance() {
-    if (step === SIGN_STEP) {
+    if (!skipAgreement && step === SIGN_STEP) {
       if (signed) {
-        setStep(5);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        setStep(LAST_STEP);
         return;
       }
       void submitSignature();
       return;
     }
-    if (step === LAST_STEP) return;
+    if (step === lastStep) return;
 
     const schema =
       step === 1 ? studioOfferingSchema : step === 2 ? studioTimeSchema : studioDetailsSchema;
@@ -316,6 +387,8 @@ export function StudioBookingFlow() {
                 STUDIO_OFFERINGS[values.offering as StudioOfferingKey]?.baseMinutes ??
                 90,
               ...(values.classSessionId ? { classSessionId: values.classSessionId } : {}),
+              ...(values.shooterId ? { shooterId: values.shooterId } : {}),
+              ...(values.shooterName ? { shooterName: values.shooterName } : {}),
             }
           : {
               clientName: values.clientName ?? "",
@@ -332,13 +405,27 @@ export function StudioBookingFlow() {
     const result = schema.safeParse(input);
     if (!result.success) {
       setErrors(collectIssues(result.error.issues));
-      if (step === 1) toast("Choose a session to continue.");
+      if (step === 1) toast("Choose an offering to continue.");
+      return;
+    }
+
+    if (
+      step === 2 &&
+      values.offering &&
+      STUDIO_OFFERINGS[values.offering].assignsShooter &&
+      !values.shooterId
+    ) {
+      setErrors({ shooterId: "Choose your shooter" });
+      toast("Choose your shooter to continue.");
       return;
     }
 
     setErrors({});
+    if (step === 3 && skipAgreement) {
+      void submitClassHold();
+      return;
+    }
     setStep(step + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (!hydrated) {
@@ -354,49 +441,57 @@ export function StudioBookingFlow() {
     );
   }
 
+  const needsShooter = Boolean(offeringForCopy?.assignsShooter);
+
   const canAdvance =
     step === 1
       ? Boolean(values.offering)
       : step === 2
-        ? Boolean(values.eventDate && values.eventStartTime)
+        ? Boolean(values.eventDate && values.eventStartTime && (!needsShooter || values.shooterId))
         : step === 3
-          ? true
-          : step === 4
-            ? !submitting
-            : step === 5
-              ? false
-              : true;
+          ? !submitting
+          : skipAgreement
+            ? false
+            : step === SIGN_STEP
+              ? !submitting
+              : false;
 
   const glanceProps = {
     offering: values.offering,
     eventDate: values.eventDate,
     eventStartTime: values.eventStartTime,
     durationMinutes: values.durationMinutes,
+    shooterName: values.shooterName,
     ...(price ? { price } : {}),
     onContinue: validateAndAdvance,
     disabled: !canAdvance,
     cta:
-      step === 5
+      step === paymentStep
         ? "Complete payment below"
-        : step === 3
-          ? "Continue to review & sign"
-          : step === 4
-            ? signed
-              ? "Continue to payment"
-              : submitting
-                ? "Signing…"
-                : "Sign & continue"
-            : "Continue",
+        : step === 3 && skipAgreement
+          ? submitting
+            ? "Reserving…"
+            : "Continue to payment"
+          : step === 3
+            ? "Continue to review & sign"
+            : step === SIGN_STEP
+              ? signed
+                ? "Continue to payment"
+                : submitting
+                  ? "Signing…"
+                  : "Sign & continue"
+              : "Continue",
   };
 
   const offering = values.offering ? STUDIO_OFFERINGS[values.offering] : null;
+  const offeringImage = values.offering ? STUDIO_OFFERING_IMAGES[values.offering] : null;
 
   return (
     <StepShell
       step={step}
       title={copy.title}
       supporting={copy.supporting}
-      stepLabels={STUDIO_STEP_META}
+      stepLabels={skipAgreement ? STUDIO_CLASS_STEP_META : STUDIO_STEP_META}
       {...(step > 1
         ? {
             onBack: () => {
@@ -405,7 +500,24 @@ export function StudioBookingFlow() {
             },
           }
         : {})}
-      {...(step > 1 ? { aside: <SessionGlance {...glanceProps} /> } : {})}
+      {...(step === 2 && offeringImage
+        ? {
+            media: (
+              <img
+                src={offeringImage.url}
+                alt={offeringImage.alt}
+                className={
+                  offeringImage.contain
+                    ? "block w-full bg-background object-contain p-10"
+                    : "block w-full"
+                }
+              />
+            ),
+            recap: <SessionGlance {...glanceProps} variant="slim" />,
+          }
+        : step > 1
+          ? { aside: <SessionGlance {...glanceProps} hidePhoto /> }
+          : {})}
       footer={<SessionGlance {...glanceProps} compact />}
     >
       {step === 1 ? (
@@ -418,6 +530,8 @@ export function StudioBookingFlow() {
               eventDate: undefined,
               eventStartTime: undefined,
               classSessionId: undefined,
+              shooterId: undefined,
+              shooterName: undefined,
             })
           }
         />
@@ -447,18 +561,17 @@ export function StudioBookingFlow() {
         </div>
       ) : null}
 
-      {step === 4 ? (
+      {step === SIGN_STEP && !skipAgreement ? (
         fullBooking && renderedAgreement ? (
           <StepAgreement
             values={agreement}
             errors={errors}
             rendered={renderedAgreement}
-            consentLabel={STUDIO_CONSENT_LABEL}
-            marketingPrompt={
-              offering?.resource === "studio_acting"
-                ? "May we mention this class in Studio 7 recaps and social channels? Declining does not affect your seat."
-                : "May we feature images from your session in the Studio 7 portfolio and social channels? Declining does not affect your service."
+            consentLabel={
+              offering?.group === "rentals" ? STUDIO_RENTAL_CONSENT_LABEL : STUDIO_CONSENT_LABEL
             }
+            showMarketing={offering?.group !== "rentals"}
+            marketingPrompt="May we feature images from your session in the Studio 7 portfolio and social channels? Declining does not affect your service."
             onChange={(p) => {
               setAgreement((a) => ({ ...a, ...p }));
               setErrors({});
@@ -471,7 +584,7 @@ export function StudioBookingFlow() {
         )
       ) : null}
 
-      {step === 5 ? (
+      {step === paymentStep ? (
         signed ? (
           <div className="space-y-6">
             <div className="soft-inset flex items-start gap-3 rounded-[16px] border border-border p-5">
@@ -486,7 +599,7 @@ export function StudioBookingFlow() {
                 ? {
                     experienceName: offering.name,
                     imageUrl: STUDIO_OFFERING_IMAGES[offering.key].url,
-                    depositEligible: offering.depositEligible,
+                    depositEligible: price?.depositEligible ?? offering.depositEligible,
                   }
                 : {})}
               {...(values.eventDate ? { eventDate: values.eventDate } : {})}
@@ -499,7 +612,9 @@ export function StudioBookingFlow() {
           </div>
         ) : (
           <p className="soft-card rounded-[24px] border border-border p-6 text-sm text-muted-foreground">
-            Sign the agreement to unlock payment.
+            {skipAgreement
+              ? "Complete your details to unlock payment."
+              : "Sign the agreement to unlock payment."}
           </p>
         )
       ) : null}

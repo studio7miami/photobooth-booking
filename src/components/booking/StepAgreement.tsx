@@ -25,6 +25,7 @@ export function StepAgreement({
   rendered,
   consentLabel,
   marketingPrompt,
+  showMarketing = true,
 }: {
   booking?: AgreementVars | undefined;
   values: AgreementValues;
@@ -34,6 +35,7 @@ export function StepAgreement({
   rendered?: RenderedAgreement | undefined;
   consentLabel?: string | undefined;
   marketingPrompt?: string | undefined;
+  showMarketing?: boolean | undefined;
 }) {
   const agreement = useMemo(() => {
     if (rendered) return rendered;
@@ -96,38 +98,40 @@ export function StepAgreement({
           <FieldError message={errors["consent"]} />
         </div>
 
-        <div>
-          <p className="label-caps text-[10px] text-muted-foreground">Marketing permission</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {marketingPrompt ??
-              "May we feature selected images or mentions in the Studio 7 portfolio and social channels? Declining does not affect your service."}
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            {[
-              { value: true, label: "Yes" },
-              { value: false, label: "No" },
-            ].map((opt) => {
-              const active = values.marketingOptIn === opt.value;
-              return (
-                <button
-                  key={opt.label}
-                  type="button"
-                  onClick={() => onChange({ marketingOptIn: opt.value })}
-                  className={cn(
-                    "label-caps flex h-12 items-center justify-center gap-2 rounded-[14px] border text-[10px] transition-all",
-                    active
-                      ? "soft-inset border-foreground bg-secondary/70 text-foreground"
-                      : "soft-card border-border text-muted-foreground hover:text-foreground",
-                  )}
-                  aria-pressed={active}
-                >
-                  {active ? <Check className="size-3.5" aria-hidden="true" /> : null}
-                  {opt.label}
-                </button>
-              );
-            })}
+        {showMarketing ? (
+          <div>
+            <p className="label-caps text-[10px] text-muted-foreground">Marketing permission</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {marketingPrompt ??
+                "May we feature selected images or mentions in the Studio 7 portfolio and social channels? Declining does not affect your service."}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {[
+                { value: true, label: "Yes" },
+                { value: false, label: "No" },
+              ].map((opt) => {
+                const active = values.marketingOptIn === opt.value;
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => onChange({ marketingOptIn: opt.value })}
+                    className={cn(
+                      "label-caps flex h-12 items-center justify-center gap-2 rounded-[14px] border text-[10px] transition-all",
+                      active
+                        ? "soft-inset border-foreground bg-secondary/70 text-foreground"
+                        : "soft-card border-border text-muted-foreground hover:text-foreground",
+                    )}
+                    aria-pressed={active}
+                  >
+                    {active ? <Check className="size-3.5" aria-hidden="true" /> : null}
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
     </div>
   );

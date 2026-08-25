@@ -3,7 +3,9 @@ import { Check, Loader2 } from "lucide-react";
 
 import { IMAGES } from "@/assets/images";
 import { formatCents } from "@/config/pricing";
+import { offeringImageFocusClass } from "@/components/studio/StepOffering";
 import { formatAddressLines, formatEmail, formatName, formatPhone } from "@/lib/format-display";
+import { cn } from "@/lib/utils";
 import { EdCard } from "./EditorialCard";
 import { OrderLine, formatLongDate } from "./StepPayment";
 import { formatTime } from "./StepTime";
@@ -13,6 +15,8 @@ export const CONFIRMATION_BODY =
   "Your date is secured and we look forward to bringing the booth to your event. Your agreement, receipt, and event details will land in your inbox soon.";
 export const STUDIO_CONFIRMATION_BODY =
   "Your session is booked. Your agreement, receipt, and details will land in your inbox soon.";
+export const CLASS_CONFIRMATION_BODY =
+  "Your seat is booked. Your receipt and class details will land in your inbox soon.";
 
 export type ConfirmationModel = {
   settled: boolean;
@@ -29,7 +33,7 @@ export type ConfirmationModel = {
   clientEmail?: string | undefined;
   clientPhone?: string | undefined;
   eventLocation?: string | undefined;
-  kind?: "photobooth" | "studio";
+  kind?: "photobooth" | "studio" | "class";
 };
 
 function Logo() {
@@ -75,9 +79,11 @@ function Header({ model }: { model: ConfirmationModel }) {
       </div>
       <p className="mt-3 text-sm leading-snug text-muted-foreground">
         {model.settled
-          ? model.kind === "studio"
-            ? STUDIO_CONFIRMATION_BODY
-            : CONFIRMATION_BODY
+          ? model.kind === "class"
+            ? CLASS_CONFIRMATION_BODY
+            : model.kind === "studio"
+              ? STUDIO_CONFIRMATION_BODY
+              : CONFIRMATION_BODY
           : "We're waiting for the payment confirmation from our processor. This usually takes a few seconds."}
       </p>
     </>
@@ -143,7 +149,9 @@ function BalanceBlock({ model }: { model: ConfirmationModel }) {
       <div className="ed-hairline flex items-baseline justify-between gap-4 py-2">
         <span className="label-caps text-[10px] text-muted-foreground">Balance remaining</span>
         <span className="text-right">
-          <span className="font-display text-sm tabular-nums">{formatCents(model.balanceCents)}</span>
+          <span className="font-display text-sm tabular-nums">
+            {formatCents(model.balanceCents)}
+          </span>
           {model.dueLabel ? (
             <span className="mt-0.5 block text-xs text-muted-foreground">Due {model.dueLabel}</span>
           ) : null}
@@ -186,7 +194,7 @@ export function ConfirmationGrouped({ model }: { model: ConfirmationModel }) {
 function EvenColumns({ model }: { model: ConfirmationModel }) {
   const date = model.eventDate ? formatLongDate(model.eventDate) : null;
   const time = clock(model);
-  const when = date && time ? `${date} · ${time}` : date ?? time;
+  const when = date && time ? `${date} · ${time}` : (date ?? time);
 
   const left = [when, ...locationLines(model)].filter((line): line is string => Boolean(line));
 
@@ -362,13 +370,26 @@ export function ConfirmationTicket({ model }: { model: ConfirmationModel }) {
               </p>
             ) : null}
             {model.paidOn ? (
-              <p className="label-caps mt-4 text-[10px] text-muted-foreground">Paid {model.paidOn}</p>
+              <p className="label-caps mt-4 text-[10px] text-muted-foreground">
+                Paid {model.paidOn}
+              </p>
             ) : null}
             <BalanceBlock model={model} />
           </div>
           <div className="border-t border-border bg-muted/40 sm:border-t-0 sm:border-l">
             {model.imageUrl ? (
-              <img src={model.imageUrl} alt="" className="h-28 w-full object-cover sm:h-32" />
+              <img
+                src={model.imageUrl}
+                alt=""
+                className={
+                  model.imageUrl.includes("framehaus-media")
+                    ? "h-28 w-full object-contain bg-background p-4 sm:h-32"
+                    : cn(
+                        "h-28 w-full object-cover sm:h-32",
+                        offeringImageFocusClass(model.imageUrl) ?? "object-center",
+                      )
+                }
+              />
             ) : null}
             <div className="p-5 sm:p-6">
               <p className="label-caps text-[10px] text-muted-foreground">Your event</p>
@@ -381,7 +402,9 @@ export function ConfirmationTicket({ model }: { model: ConfirmationModel }) {
                   {line}
                 </p>
               ))}
-              <p className="mt-4 font-display text-2xl tabular-nums">{formatCents(model.totalCents)}</p>
+              <p className="mt-4 font-display text-2xl tabular-nums">
+                {formatCents(model.totalCents)}
+              </p>
             </div>
           </div>
         </div>

@@ -1,6 +1,11 @@
 import { CONFIRMED_STATUSES } from "@/config/booking-rules";
 import { formatCents, REQUIRE_FULL_PAYMENT_WITHIN_DAYS } from "@/config/pricing";
-import { isStudioOfferingKey, STUDIO_OFFERINGS, STUDIO_STRIPE_LOOKUP_KEY } from "@/config/studio/offerings";
+import {
+  isStudioOfferingKey,
+  STUDIO_OFFERINGS,
+  STUDIO_STRIPE_LOOKUP_KEY,
+  calculateStudioPrice,
+} from "@/config/studio/offerings";
 import { canStartBalancePayment, canStartPayment, type BookingStatus } from "./booking-states";
 import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
 import { isHoldActive } from "./hold";
@@ -44,8 +49,7 @@ async function ensureWalletDomain(
   try {
     const listed = await stripe.paymentMethodDomains.list({ limit: 100 });
     const existing = listed.data.find((row) => row.domain_name === domain);
-    const record =
-      existing ?? (await stripe.paymentMethodDomains.create({ domain_name: domain }));
+    const record = existing ?? (await stripe.paymentMethodDomains.create({ domain_name: domain }));
     if (existing && !existing.enabled) {
       await stripe.paymentMethodDomains.update(record.id, { enabled: true });
     }
@@ -98,9 +102,9 @@ async function resolveCustomer(
   return created.id;
 }
 
-export async function startBookingPayment(args: StartArgs): Promise<
-  { clientSecret: string } | { error: string }
-> {
+export async function startBookingPayment(
+  args: StartArgs,
+): Promise<{ clientSecret: string } | { error: string }> {
   const supabase = await getAdmin();
   const { data: booking, error } = await supabase
     .from("bookings")
@@ -155,15 +159,16 @@ export async function startBookingPayment(args: StartArgs): Promise<
         )
       : Number.POSITIVE_INFINITY;
     const experience = String(row["experience"] ?? "");
-    const depositAllowed =
-      daysOut > REQUIRE_FULL_PAYMENT_WITHIN_DAYS &&
-      (!isStudioOfferingKey(experience) || STUDIO_OFFERINGS[experience].depositEligible);
-    paymentMode =
-      !depositAllowed
-        ? "full"
-        : args.paymentMode === "deposit"
-          ? "deposit"
-          : "full";
+    let studioDepositOk = true;
+    if (isStudioOfferingKey(experience)) {
+      const duration = Number(row["duration_minutes"]) || STUDIO_OFFERINGS[experience].baseMinutes;
+      studioDepositOk = calculateStudioPrice({
+        offering: experience,
+        durationMinutes: duration,
+      }).depositEligible;
+    }
+    const depositAllowed = daysOut > REQUIRE_FULL_PAYMENT_WITHIN_DAYS && studioDepositOk;
+    paymentMode = !depositAllowed ? "full" : args.paymentMode === "deposit" ? "deposit" : "full";
     amountCents = paymentMode === "deposit" ? depositCents : totalCents;
     if (!amountCents || amountCents < 50) return { error: "This booking has no payable amount." };
     label =
@@ -253,7 +258,7 @@ async function syncPaidBookingCalendar(bookingId: string) {
     const { data } = await supabase
       .from("bookings")
       .select(
-        "id, status, client_name, client_email, client_phone, event_location, event_type, event_date, event_start_time, duration_hours, duration_minutes, experience, payment_mode, product, resource",
+        "id, status, client_name, client_email, client_phone, event_location, event_type, event_date, event_start_time, duration_hours, duration_minutes, experience, payment_mode, product, resource, shooter_name",
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -274,6 +279,7 @@ async function syncPaidBookingCalendar(bookingId: string) {
       payment_mode: string | null;
       product: string | null;
       resource: string | null;
+      shooter_name: string | null;
     };
     if (!CONFIRMED_STATUSES.includes(row.status as (typeof CONFIRMED_STATUSES)[number])) return;
     const { upsertPaidBookingEvent } = await import("./google-calendar.server");
@@ -348,12 +354,16 @@ export async function applySuccessfulPayment(facts: PaymentFacts) {
       from: status,
       to: status,
       actor: "stripe_webhook",
-      meta: { ignored: "payment received in non-payable state", payment_intent_id: facts.paymentIntentId },
+      meta: {
+        ignored: "payment received in non-payable state",
+        payment_intent_id: facts.paymentIntentId,
+      },
     });
     return;
   }
 
-  const paidState: BookingStatus = facts.paymentMode === "deposit" ? "deposit_paid" : "paid_in_full";
+  const paidState: BookingStatus =
+    facts.paymentMode === "deposit" ? "deposit_paid" : "paid_in_full";
 
   const moved = await transitionBooking({
     bookingId: facts.bookingId,
@@ -410,7 +420,10 @@ async function recoverPaidCheckout(bookingId: string, customerId: string | null)
       bookingId,
       paymentMode: mode === "full" || mode === "balance" ? mode : "deposit",
       paymentIntentId: paid.id,
-      chargeId: typeof paid.latest_charge === "string" ? paid.latest_charge : paid.latest_charge?.id ?? null,
+      chargeId:
+        typeof paid.latest_charge === "string"
+          ? paid.latest_charge
+          : (paid.latest_charge?.id ?? null),
       amountCents: Number(paid.amount_received ?? paid.amount ?? 0),
     });
   } catch (error) {

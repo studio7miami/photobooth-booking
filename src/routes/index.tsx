@@ -9,12 +9,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Book portraits, headshots, passport photos, and acting class at Studio 7 Miami. Pick a session, sign, and pay.",
+          "Book studio rentals, portraits, sports media, headshots, passport photos, and acting class at Studio 7 Miami. Pick a session, sign, and pay.",
       },
       { property: "og:title", content: "Book Studio 7 Miami" },
       {
         property: "og:description",
-        content: "Portraits, headshots, passport photos, and class — book your studio session.",
+        content:
+          "Studio rentals, portraits, sports media, headshots, and class — book your studio session.",
       },
       { property: "og:type", content: "website" },
       { property: "og:image", content: IMAGES.og },

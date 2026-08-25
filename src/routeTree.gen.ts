@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookedPreviewRouteImport } from './routes/booked-preview'
 import { Route as CheckoutPreviewRouteImport } from './routes/checkout-preview'
+import { Route as LayoutPreviewRouteImport } from './routes/layout-preview'
 import { Route as PhotoboothIndexRouteImport } from './routes/photobooth/index'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as PhotoboothApiPublicPaymentsWebhookRouteImport } from './routes/photobooth/api/public/payments/webhook'
@@ -29,6 +30,11 @@ const BookedPreviewRoute = BookedPreviewRouteImport.update({
 const CheckoutPreviewRoute = CheckoutPreviewRouteImport.update({
   id: '/checkout-preview',
   path: '/checkout-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LayoutPreviewRoute = LayoutPreviewRouteImport.update({
+  id: '/layout-preview',
+  path: '/layout-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PhotoboothIndexRoute = PhotoboothIndexRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/layout-preview': typeof LayoutPreviewRoute
   '/photobooth/': typeof PhotoboothIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/layout-preview': typeof LayoutPreviewRoute
   '/photobooth': typeof PhotoboothIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/layout-preview': typeof LayoutPreviewRoute
   '/photobooth/': typeof PhotoboothIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/layout-preview'
     | '/photobooth/'
     | '/api/public/payments/webhook'
     | '/photobooth/api/public/payments/webhook'
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/layout-preview'
     | '/photobooth'
     | '/api/public/payments/webhook'
     | '/photobooth/api/public/payments/webhook'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/layout-preview'
     | '/photobooth/'
     | '/api/public/payments/webhook'
     | '/photobooth/api/public/payments/webhook'
@@ -105,6 +117,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookedPreviewRoute: typeof BookedPreviewRoute
   CheckoutPreviewRoute: typeof CheckoutPreviewRoute
+  LayoutPreviewRoute: typeof LayoutPreviewRoute
   PhotoboothIndexRoute: typeof PhotoboothIndexRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   PhotoboothApiPublicPaymentsWebhookRoute: typeof PhotoboothApiPublicPaymentsWebhookRoute
@@ -131,6 +144,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout-preview'
       fullPath: '/checkout-preview'
       preLoaderRoute: typeof CheckoutPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/layout-preview': {
+      id: '/layout-preview'
+      path: '/layout-preview'
+      fullPath: '/layout-preview'
+      preLoaderRoute: typeof LayoutPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/photobooth/': {
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookedPreviewRoute: BookedPreviewRoute,
   CheckoutPreviewRoute: CheckoutPreviewRoute,
+  LayoutPreviewRoute: LayoutPreviewRoute,
   PhotoboothIndexRoute: PhotoboothIndexRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   PhotoboothApiPublicPaymentsWebhookRoute:

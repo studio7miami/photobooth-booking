@@ -1,12 +1,12 @@
 import { CONFIRMED_STATUSES } from "@/config/booking-rules";
-import {
-  ACTING_CAPACITY,
-  ACTING_HORIZON_WEEKS,
-  ACTING_WEEKLY,
-  BOOKING_TIMEZONE,
-} from "@/config/studio/booking-rules";
+import { ACTING_CAPACITY, ACTING_WEEKLY, BOOKING_TIMEZONE } from "@/config/studio/booking-rules";
 import { STUDIO_OFFERINGS, type StudioOfferingKey } from "@/config/studio/offerings";
-import { occupancyFromWindow, wallTimeToUtcMs, ymdInZone, type Occupancy } from "@/lib/availability";
+import {
+  occupancyFromWindow,
+  wallTimeToUtcMs,
+  ymdInZone,
+  type Occupancy,
+} from "@/lib/availability";
 import { getAdmin, transitionBooking } from "@/lib/booking.server";
 import { holdCutoffIso, isHoldActive } from "@/lib/hold";
 import {
@@ -38,9 +38,10 @@ function rowToPhotoOccupancy(row: OccupancyRow): Occupancy | null {
   const date = row.event_date;
   if (!date) return null;
   const startTime = hhmm(row.event_start_time);
-  const offering = row.experience && row.experience in STUDIO_OFFERINGS
-    ? STUDIO_OFFERINGS[row.experience as StudioOfferingKey]
-    : null;
+  const offering =
+    row.experience && row.experience in STUDIO_OFFERINGS
+      ? STUDIO_OFFERINGS[row.experience as StudioOfferingKey]
+      : null;
   const duration =
     Number(row.duration_minutes) ||
     offering?.baseMinutes ||
@@ -150,10 +151,20 @@ function addDaysYmd(date: string, days: number): string {
   return new Date(Date.UTC(year, (month ?? 1) - 1, (day ?? 1) + days)).toISOString().slice(0, 10);
 }
 
-function materializeActingDates(fromDate: string): { date: string; startTime: string }[] {
+function lastDayOfNextMonth(todayYmd: string): string {
+  const [year, month] = todayYmd.split("-").map(Number);
+  const nextMonth = (month ?? 1) === 12 ? 1 : (month ?? 1) + 1;
+  const nextYear = (month ?? 1) === 12 ? (year ?? 1970) + 1 : (year ?? 1970);
+  const lastDay = new Date(Date.UTC(nextYear, nextMonth, 0)).getUTCDate();
+  return `${nextYear}-${`${nextMonth}`.padStart(2, "0")}-${`${lastDay}`.padStart(2, "0")}`;
+}
+
+function materializeActingDates(
+  fromDate: string,
+  lastDate: string,
+): { date: string; startTime: string }[] {
   const out: { date: string; startTime: string }[] = [];
-  const last = addDaysYmd(fromDate, ACTING_HORIZON_WEEKS * 7);
-  for (let cursor = fromDate; cursor <= last; cursor = addDaysYmd(cursor, 1)) {
+  for (let cursor = fromDate; cursor <= lastDate; cursor = addDaysYmd(cursor, 1)) {
     const weekday = easternWeekday(cursor);
     for (const weekly of ACTING_WEEKLY) {
       if (weekly.weekday === weekday) out.push({ date: cursor, startTime: weekly.startTime });
@@ -176,10 +187,7 @@ function sessionOverlapsHold(
   });
 }
 
-async function countActingSeats(
-  sessionId: string,
-  excludeBookingId?: string,
-): Promise<number> {
+async function countActingSeats(sessionId: string, excludeBookingId?: string): Promise<number> {
   const supabase = await getAdmin();
   const cutoff = holdCutoffIso();
   const [{ data: confirmed }, { data: holds }] = await Promise.all([
@@ -208,7 +216,9 @@ async function countActingSeats(
     taken += 1;
   }
   if (excludeBookingId) {
-    taken -= (confirmed ?? []).filter((row) => String((row as { id: string }).id) === excludeBookingId).length;
+    taken -= (confirmed ?? []).filter(
+      (row) => String((row as { id: string }).id) === excludeBookingId,
+    ).length;
   }
   return taken;
 }
@@ -223,8 +233,10 @@ export async function listActingSessions(args?: {
     /* occupancy still usable */
   }
 
-  const tomorrow = addDaysYmd(ymdInZone(new Date(), BOOKING_TIMEZONE), 1);
-  const dates = materializeActingDates(tomorrow);
+  const today = ymdInZone(new Date(), BOOKING_TIMEZONE);
+  const tomorrow = addDaysYmd(today, 1);
+  const last = lastDayOfNextMonth(today);
+  const dates = materializeActingDates(tomorrow, last);
   const durationMinutes = STUDIO_OFFERINGS.acting_cj.baseMinutes;
 
   let googleHolds: Occupancy[] = [];

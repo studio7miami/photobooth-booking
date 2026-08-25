@@ -4,17 +4,19 @@ import { Calendar as CalendarIcon, Clock as ClockIcon, Minus, Plus } from "lucid
 import { Calendar } from "@/components/ui/calendar";
 import { PHOTO_TIME_SLOTS } from "@/config/studio/booking-rules";
 import {
-  EXTRA_TIME_STEP_MINUTES,
+  extraStepMinutes,
   formatCents,
   formatDurationMinutes,
-  MAX_EXTRA_SLOTS,
+  maxExtraSlots,
   STUDIO_OFFERINGS,
+  type StudioOffering,
   type StudioOfferingKey,
 } from "@/config/studio/offerings";
 import { isPhotoDateClosed, isPhotoSlotOpen, type Occupancy } from "@/lib/studio/availability";
 import { listActingSessions, listStudioPhotoOccupancy } from "@/lib/studio/availability.functions";
 import type { ActingSession } from "@/lib/studio/availability";
 import { FieldError } from "@/components/booking/StepShell";
+import { StepShooter } from "@/components/studio/StepShooter";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatTime } from "@/components/booking/StepTime";
@@ -25,6 +27,8 @@ export type StudioTimeValues = {
   eventStartTime?: string | undefined;
   durationMinutes?: number | undefined;
   classSessionId?: string | undefined;
+  shooterId?: string | undefined;
+  shooterName?: string | undefined;
 };
 
 export function StepStudioTime({
@@ -81,8 +85,10 @@ function PhotoTimePicker({
   const loadOccupancy = useServerFn(listStudioPhotoOccupancy);
   const tier = STUDIO_OFFERINGS[offering];
   const duration = values.durationMinutes ?? tier.baseMinutes;
-  const extraSlots = Math.max(0, Math.round((duration - tier.baseMinutes) / EXTRA_TIME_STEP_MINUTES));
+  const step = extraStepMinutes(tier);
+  const extraSlots = Math.max(0, Math.round((duration - tier.baseMinutes) / step));
   const showExtra = tier.allowsExtraTime && tier.additionalSlotCents > 0;
+  const isRental = tier.group === "rentals";
   const minDate = React.useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -115,21 +121,28 @@ function PhotoTimePicker({
   React.useEffect(() => {
     if (!values.eventDate) return;
     if (isPhotoDateClosed(occupancy, values.eventDate, duration)) {
-      onChange({ eventDate: undefined, eventStartTime: undefined });
+      onChange({
+        eventDate: undefined,
+        eventStartTime: undefined,
+        shooterId: undefined,
+        shooterName: undefined,
+      });
       return;
     }
     if (
       values.eventStartTime &&
       !isPhotoSlotOpen(occupancy, values.eventDate, values.eventStartTime, duration)
     ) {
-      onChange({ eventStartTime: undefined });
+      onChange({ eventStartTime: undefined, shooterId: undefined, shooterName: undefined });
     }
   }, [occupancy, duration, values.eventDate, values.eventStartTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="rounded-[24px] border border-border soft-card p-4 sm:p-6">
-        <Label className="label-caps text-[10px] text-muted-foreground">Session date</Label>
+        <Label className="label-caps text-[10px] text-muted-foreground">
+          {isRental ? "Rental date" : "Session date"}
+        </Label>
         <Popover open={dateOpen} onOpenChange={setDateOpen}>
           <PopoverTrigger asChild>
             <button
@@ -152,16 +165,22 @@ function PhotoTimePicker({
             <Calendar
               mode="single"
               weekStartsOn={1}
+              startMonth={minDate}
+              defaultMonth={selectedDate ?? minDate}
               {...(selectedDate ? { selected: selectedDate } : {})}
-              {...(selectedDate ? { defaultMonth: selectedDate } : {})}
-              disabled={[
-                { before: minDate },
-                (day) => isPhotoDateClosed(occupancy, toISODate(day), duration),
-              ]}
+              disabled={(day) =>
+                day < minDate || isPhotoDateClosed(occupancy, toISODate(day), duration)
+              }
               onSelect={(d) => {
                 const next = d ? toISODate(d) : undefined;
                 if (next && isPhotoDateClosed(occupancy, next, duration)) return;
-                onChange({ eventDate: next, eventStartTime: undefined, classSessionId: undefined });
+                onChange({
+                  eventDate: next,
+                  eventStartTime: undefined,
+                  classSessionId: undefined,
+                  shooterId: undefined,
+                  shooterName: undefined,
+                });
                 if (d) setDateOpen(false);
               }}
               className="pointer-events-auto w-full rounded-[18px] bg-background p-3 [--cell-size:2.5rem]"
@@ -229,11 +248,28 @@ function PhotoTimePicker({
             </div>
           </PopoverContent>
         </Popover>
-        <p className="mt-2 text-xs text-muted-foreground">Times are Eastern (Miami). Studio hours 10:00 AM – 7:00 PM.</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Times are Eastern (Miami). Studio hours 10:00 AM – 7:00 PM.
+        </p>
         <FieldError message={errors["eventStartTime"]} />
       </div>
 
-      {showExtra ? (
+      {isRental ? (
+        <RentalHourChips
+          hours={Math.round(duration / 60)}
+          options={rentalHourOptions(tier)}
+          rateCents={tier.baseCents}
+          error={errors["durationMinutes"]}
+          onHours={(hours) =>
+            onChange({
+              durationMinutes: hours * 60,
+              eventStartTime: undefined,
+              shooterId: undefined,
+              shooterName: undefined,
+            })
+          }
+        />
+      ) : showExtra ? (
         <div className="rounded-[24px] border border-border soft-card p-5 sm:p-6">
           <p className="label-caps text-[10px] text-muted-foreground">Duration</p>
           <div className="mt-3 flex items-center justify-between gap-4">
@@ -243,8 +279,8 @@ function PhotoTimePicker({
               </p>
               <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
                 {extraSlots > 0
-                  ? `+${extraSlots * EXTRA_TIME_STEP_MINUTES} min · ${formatCents(extraSlots * tier.additionalSlotCents)}`
-                  : `${formatDurationMinutes(tier.baseMinutes)} included · extra ${formatCents(tier.additionalSlotCents)} / ${EXTRA_TIME_STEP_MINUTES} min`}
+                  ? `+${extraSlots * step} min · ${formatCents(extraSlots * tier.additionalSlotCents)}`
+                  : `${formatDurationMinutes(tier.baseMinutes)} included · extra ${formatCents(tier.additionalSlotCents)} / ${step} min`}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -253,8 +289,10 @@ function PhotoTimePicker({
                 disabled={duration <= tier.baseMinutes}
                 onClick={() =>
                   onChange({
-                    durationMinutes: Math.max(tier.baseMinutes, duration - EXTRA_TIME_STEP_MINUTES),
+                    durationMinutes: Math.max(tier.baseMinutes, duration - step),
                     eventStartTime: undefined,
+                    shooterId: undefined,
+                    shooterName: undefined,
                   })
                 }
               >
@@ -262,11 +300,13 @@ function PhotoTimePicker({
               </RoundButton>
               <RoundButton
                 aria-label="Increase duration"
-                disabled={extraSlots >= MAX_EXTRA_SLOTS}
+                disabled={extraSlots >= maxExtraSlots(tier)}
                 onClick={() =>
                   onChange({
-                    durationMinutes: duration + EXTRA_TIME_STEP_MINUTES,
+                    durationMinutes: duration + step,
                     eventStartTime: undefined,
+                    shooterId: undefined,
+                    shooterName: undefined,
                   })
                 }
               >
@@ -275,9 +315,21 @@ function PhotoTimePicker({
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            {formatDurationMinutes(tier.baseMinutes)} included. Add extra time in {EXTRA_TIME_STEP_MINUTES}-minute steps.
+            {`${formatDurationMinutes(tier.baseMinutes)} included. Add extra time in ${step}-minute steps.`}
           </p>
         </div>
+      ) : null}
+
+      {tier.assignsShooter ? (
+        <StepShooter
+          {...(values.shooterId ? { shooterId: values.shooterId } : {})}
+          {...(values.eventDate ? { eventDate: values.eventDate } : {})}
+          {...(values.eventStartTime ? { eventStartTime: values.eventStartTime } : {})}
+          durationMinutes={duration}
+          {...(excludeBookingId ? { excludeBookingId } : {})}
+          error={errors["shooterId"]}
+          onChange={onChange}
+        />
       ) : null}
     </div>
   );
@@ -336,7 +388,7 @@ function ActingSessionPicker({
           ) : null}
           {!loading && sessions.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No open classes in the next few weeks. Check back soon, or message the studio.
+              No open classes this month or next. Check back soon, or message the studio.
             </p>
           ) : null}
           {sessions.map((session) => {
@@ -362,7 +414,12 @@ function ActingSessionPicker({
               >
                 <span>
                   <span className="block font-display text-sm">{formatLong(session.date)}</span>
-                  <span className={cn("mt-1 block text-xs", selected ? "text-background/80" : "text-muted-foreground")}>
+                  <span
+                    className={cn(
+                      "mt-1 block text-xs",
+                      selected ? "text-background/80" : "text-muted-foreground",
+                    )}
+                  >
                     {formatTime(session.startTime)} · 2 hours
                   </span>
                 </span>
@@ -373,18 +430,65 @@ function ActingSessionPicker({
             );
           })}
         </div>
-        <FieldError message={errors["classSessionId"] ?? errors["eventDate"] ?? errors["eventStartTime"]} />
+        <FieldError
+          message={errors["classSessionId"] ?? errors["eventDate"] ?? errors["eventStartTime"]}
+        />
       </div>
     </div>
   );
 }
 
-function RoundButton({
-  children,
-  disabled,
-  onClick,
-  ...rest
-}: React.ComponentProps<"button">) {
+function rentalHourOptions(tier: StudioOffering): number[] {
+  const step = extraStepMinutes(tier);
+  return Array.from(
+    { length: maxExtraSlots(tier) + 1 },
+    (_, i) => (tier.baseMinutes + i * step) / 60,
+  );
+}
+
+function RentalHourChips({
+  hours,
+  options,
+  rateCents,
+  error,
+  onHours,
+}: {
+  hours: number;
+  options: number[];
+  rateCents: number;
+  error?: string | undefined;
+  onHours: (hours: number) => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-border soft-card p-5 sm:p-6">
+      <p className="label-caps text-[10px] text-muted-foreground">Hours</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {options.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onHours(n)}
+            aria-pressed={hours === n}
+            className={cn(
+              "label-caps min-w-10 rounded-full border px-3 py-2 text-[10px] tabular-nums",
+              hours === n
+                ? "border-foreground bg-foreground text-background"
+                : "border-border hover:border-foreground/40",
+            )}
+          >
+            {n}h
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        {formatCents(rateCents)} / hour. Billed for the hours you pick.
+      </p>
+      <FieldError message={error} />
+    </div>
+  );
+}
+
+function RoundButton({ children, disabled, onClick, ...rest }: React.ComponentProps<"button">) {
   return (
     <button
       type="button"

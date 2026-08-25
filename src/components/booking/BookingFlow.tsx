@@ -3,11 +3,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
 import { INACTIVITY_MINUTES } from "@/config/booking-rules";
-import {
-  EXPERIENCES,
-  calculatePrice,
-  type ExperienceKey,
-} from "@/config/pricing";
+import { EXPERIENCES, calculatePrice, type ExperienceKey } from "@/config/pricing";
 import {
   bookingDetailsSchema,
   stepDetailsSchema,
@@ -19,7 +15,13 @@ import {
 import { finalizeSignatureSchema } from "@/lib/agreement-schema";
 import { finalizeSignature } from "@/lib/agreement.functions";
 import { releaseHold as releaseHoldFn } from "@/lib/availability.functions";
-import { clearDraft, loadDraft, saveDraft, touchDraft, type StoredSigned } from "@/lib/booking-draft";
+import {
+  clearDraft,
+  loadDraft,
+  saveDraft,
+  touchDraft,
+  type StoredSigned,
+} from "@/lib/booking-draft";
 import { isHoldActive } from "@/lib/hold";
 import { getStripe } from "@/lib/stripe";
 import { StepShell } from "./StepShell";
@@ -93,7 +95,10 @@ export function BookingFlow() {
       setHydrated(true);
       return;
     }
-    if (import.meta.env.DEV && (params.get("preview") === "booked" || params.get("preview") === "deposit")) {
+    if (
+      import.meta.env.DEV &&
+      (params.get("preview") === "booked" || params.get("preview") === "deposit")
+    ) {
       setPaidBookingId(params.get("preview") === "deposit" ? "preview-deposit" : "preview");
       setHydrated(true);
       return;
@@ -153,7 +158,8 @@ export function BookingFlow() {
   const startOverRef = useRef(startOver);
   startOverRef.current = startOver;
   const flowActiveRef = useRef(false);
-  flowActiveRef.current = Boolean(paidBookingId) || step > 1 || Object.keys(values).length > 0 || Boolean(signed);
+  flowActiveRef.current =
+    Boolean(paidBookingId) || step > 1 || Object.keys(values).length > 0 || Boolean(signed);
 
   useEffect(() => {
     if (!hydrated || paidBookingId) return;
@@ -257,7 +263,6 @@ export function BookingFlow() {
       setStep(5);
       saveDraft(5, values, { signed: signedRecord });
       setErrors({});
-      window.scrollTo({ top: 0, behavior: "smooth" });
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -275,7 +280,6 @@ export function BookingFlow() {
     if (step === SIGN_STEP) {
       if (signed) {
         setStep(5);
-        window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
       void submitSignature();
@@ -321,7 +325,6 @@ export function BookingFlow() {
 
     setErrors({});
     setStep(step + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (!hydrated) {
@@ -398,7 +401,9 @@ export function BookingFlow() {
               patch({
                 experience,
                 durationHours: EXPERIENCES[experience].baseHours,
-                stationCount: EXPERIENCES[experience].perStation ? (values.stationCount ?? 1) : null,
+                stationCount: EXPERIENCES[experience].perStation
+                  ? (values.stationCount ?? 1)
+                  : null,
               })
             }
           />
@@ -456,8 +461,7 @@ export function BookingFlow() {
           </div>
         ) : (
           <p className="soft-card rounded-[24px] border border-border p-6 text-sm text-muted-foreground">
-            Some event details are still missing. Step back and complete them to see your
-            agreement.
+            Some event details are still missing. Step back and complete them to see your agreement.
           </p>
         )
       ) : null}

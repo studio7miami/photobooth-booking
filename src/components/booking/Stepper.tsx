@@ -4,13 +4,7 @@ import { cn } from "@/lib/utils";
 
 export type StepMeta = readonly { step: number; label: string; microcopy: string }[];
 
-export function Stepper({
-  step,
-  steps = STEP_META,
-}: {
-  step: number;
-  steps?: StepMeta;
-}) {
+export function Stepper({ step, steps = STEP_META }: { step: number; steps?: StepMeta }) {
   const total = steps.length || TOTAL_STEPS;
   const current = steps[Math.min(Math.max(step, 1), total) - 1]!;
   const pct = Math.round(((step - 1) / (total - 1)) * 100);
@@ -31,7 +25,7 @@ export function Stepper({
             className="absolute left-[8%] top-1/2 h-px -translate-y-1/2 bg-[var(--ink)] transition-[width] duration-300 ease-out motion-reduce:transition-none"
             style={{ width: `calc(84% * ${pct} / 100)` }}
           />
-          <ol className="relative grid grid-cols-5">
+          <ol className={cn("relative grid", total === 4 ? "grid-cols-4" : "grid-cols-5")}>
             {steps.map((s) => {
               const done = s.step < step;
               const active = s.step === step;

@@ -21,25 +21,30 @@ Public booking for the studio and for photobooth rentals. A guest picks an offer
 
 Same five-step chrome as the booth: experience → date & time → details → sign → pay. Location is always Studio 7 Miami.
 
-1. **Choose a session** — Framehaus Media, Portraits, Beauty / Theatrical / Standard headshots, Passport Photos, or Acting Class w/ CJ.
-2. **Pick date and time** — Photo sessions use open 15-minute starts, 10:00 AM – 7:00 PM Eastern, with a 15-minute buffer between bookings. Extra 30-minute time is available once a per-step rate is set in `src/config/studio/offerings.ts`. Acting class is a **group** seat in a published Saturday 2:00 PM class (capacity 8).
+1. **Choose a session** — Full Studio or Photo Studio rental, Portraits, Sports Media, Beauty / Theatrical / Standard headshots, Passport Photos, Digitals + Comp Cards w/ Framehaus Media, or Acting Class w/ CJ.
+2. **Pick date and time** — Photo sessions use open 15-minute starts, 10:00 AM – 7:00 PM Eastern, with a 15-minute buffer between bookings. Extra 30-minute time is available once a per-step rate is set in `src/config/studio/offerings.ts`. Studio rentals are billed **by the hour** (Full Studio $155/hr, Photo Studio $75/hr) on the same studio calendar. Acting class is a **group** seat in a published Saturday 2:00 PM class (capacity 8), shown for the current month and the next.
 3. **Your details** — Name, email, phone, optional notes.
 4. **Review & sign** — Studio agreement (`studio-v1`). Starts a **10-minute hold**.
-5. **Pay** — Offerings **$225 and up** may take a 50% deposit (full pay if the session is within 3 days). Framehaus ($165), passport ($50), and acting class ($50) are **paid in full**. Cards are not saved.
+5. **Pay** — Offerings **$225 and up** may take a 50% deposit (full pay if the session is within 3 days). Sessions under $225 — Framehaus, theatrical, standard headshots, sports media, passport, acting class, and short rentals — are **paid in full**. Cards are not saved.
 
 Photo occupancy is a dedicated studio/photographer Google Calendar (`GOOGLE_CALENDAR_ID_STUDIO`). Acting class uses CJ's calendar (`GOOGLE_CALENDAR_ID_ACTING`) only as blocks — published class times live in config; paid seats live in the database. Photo and class can overlap.
 
-| Session | Time | Price | Pay |
-| --- | --- | --- | --- |
-| Framehaus Media | 90 min | $165 | Full |
-| Portraits | 90 min | $350 | Deposit OK |
-| Beauty Headshots | 90 min | $300 | Deposit OK |
-| Theatrical Headshots | 90 min | $300 | Deposit OK |
-| Standard Headshots | 30 min | $225 | Deposit OK |
-| Passport Photos | 15 min | $50 | Full |
-| Acting Class w/ CJ | 2 hr | $50 | Full (group seat) |
+| Session                                  | Time   | Price   | Pay                                   |
+| ---------------------------------------- | ------ | ------- | ------------------------------------- |
+| Full Studio Rental                       | Hourly | $155/hr | Full under $225; deposit OK at 2+ hrs |
+| Photo Studio Rental                      | Hourly | $75/hr  | Full under $225; deposit OK at 3+ hrs |
+| Portraits                                | 90 min | $250    | Deposit OK                            |
+| Sports Media                             | 2 hr   | $175    | Full                                  |
+| Beauty Headshots                         | 90 min | $225    | Deposit OK                            |
+| Theatrical Headshots                     | 90 min | $165    | Full                                  |
+| Standard Headshots                       | 30 min | $150    | Full                                  |
+| Passport Photos                          | 15 min | $40     | Full                                  |
+| Digitals + Comp Cards w/ Framehaus Media | 90 min | $165    | Full                                  |
+| Acting Class w/ CJ                       | 2 hr   | $50     | Full (group seat)                     |
 
-After payment, photo sessions are written to the studio calendar. Acting class does **not** create one calendar event per student.
+After payment, photo sessions and studio rentals are written to the studio calendar. Acting class does **not** create one calendar event per student.
+
+Stripe lookup keys (optional — missing keys do not block checkout): `s7_photo_studio`, `s7_full_studio`, `s7_sports_media`.
 
 ---
 
@@ -59,11 +64,11 @@ On success they see a confirmation: package, date and time, location, their cont
 
 ### Packages and money
 
-| Package | Who it is for | Included time | Price |
-| --- | --- | --- | --- |
-| **The Miami Classic** | Up to 50 guests | 2 hours | $250 |
-| **The Miami Social** | 51–200 guests | 3 hours | $500 |
-| **The Miami Luxe** | 200+ guests | 5 hours per station | $1,500 per station |
+| Package               | Who it is for   | Included time       | Price              |
+| --------------------- | --------------- | ------------------- | ------------------ |
+| **The Miami Classic** | Up to 50 guests | 2 hours             | $250               |
+| **The Miami Social**  | 51–200 guests   | 3 hours             | $500               |
+| **The Miami Luxe**    | 200+ guests     | 5 hours per station | $1,500 per station |
 
 Extra hours: Classic $100/hr, Social $150/hr, Luxe $200/hr per station.
 
@@ -130,18 +135,20 @@ flowchart LR
 - Studio photo: `GOOGLE_CALENDAR_ID_STUDIO`.
 - Acting class blocks: `GOOGLE_CALENDAR_ID_ACTING`.
 
+**Team directory (optional)** — Portraits lets the guest pick a photographer. Bookable names come from the team app Supabase (`users` where `bookable` is true). Set `TEAM_SUPABASE_URL` and `TEAM_SUPABASE_SERVICE_ROLE_KEY` (or a publishable key that can read that table). Optional: `TEAM_SUPABASE_USERS_TABLE` if the table is not `users`. Expected columns: `id`, `bookable`, a name (`full_name` / `display_name` / `name`), optional `portfolio_url` / `website`, optional `avatar_url`. The list is filtered to people free at the selected date and time (anyone already booked on an overlapping studio session is hidden).
+
 The guest is **not** invited to calendar events.
 
 ---
 
 ## After they pay
 
-| What | Who sends it |
-| --- | --- |
-| Payment receipt | Stripe, to the email they entered |
-| Confirmation on screen | This app, immediately after Stripe confirms |
-| Agreement copy and event details in the inbox | The Studio 7 concierge (not this app) |
-| Block on the matching calendar | This app, as soon as payment is confirmed (photo and photobooth only) |
+| What                                          | Who sends it                                                          |
+| --------------------------------------------- | --------------------------------------------------------------------- |
+| Payment receipt                               | Stripe, to the email they entered                                     |
+| Confirmation on screen                        | This app, immediately after Stripe confirms                           |
+| Agreement copy and event details in the inbox | The Studio 7 concierge (not this app)                                 |
+| Block on the matching calendar                | This app, as soon as payment is confirmed (photo and photobooth only) |
 
 A deposit booking is confirmed with the remaining balance shown and a due date. Collecting that remaining balance is not a button on the confirmation screen today.
 
@@ -159,7 +166,7 @@ You do not need an admin panel inside this site.
 - **To block a photo window**, put it on the studio photo calendar. **To block the booth**, put it on the photobooth calendar.
 - **To change a price, hours, deposit rules, hold length, class schedule, or buffer**, that is a config change in this project.
 
-Apply the latest Supabase migration so `product`, `resource`, `duration_minutes`, `class_session_id`, and `client_notes` exist on `bookings`.
+Apply the latest Supabase migration so `product`, `resource`, `duration_minutes`, `class_session_id`, `client_notes`, `shooter_id`, and `shooter_name` exist on `bookings`.
 
 ---
 
@@ -172,4 +179,4 @@ Apply the latest Supabase migration so `product`, `resource`, `duration_minutes`
 
 ---
 
-*Book · Studio 7 Miami × TAĪSTU · August 2026*
+_Book · Studio 7 Miami × TAĪSTU · August 2026_

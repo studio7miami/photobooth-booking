@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { STUDIO_OFFERING_KEYS } from "@/config/studio/offerings";
+import {
+  STUDIO_OFFERING_KEYS,
+  STUDIO_OFFERINGS,
+  type StudioOfferingKey,
+} from "@/config/studio/offerings";
 import { STUDIO_LOCATION } from "@/config/studio/booking-rules";
 
 export const studioOfferingSchema = z.object({
@@ -15,8 +19,10 @@ export const studioTimeSchema = z
         message: "Pick a future date",
       }),
     eventStartTime: z.string().regex(/^\d{2}:\d{2}$/, { message: "Choose a start time" }),
-    durationMinutes: z.number().int().min(15).max(360),
+    durationMinutes: z.number().int().min(15).max(540),
     classSessionId: z.string().min(1).max(40).optional(),
+    shooterId: z.string().min(1).max(80).optional(),
+    shooterName: z.string().min(1).max(120).optional(),
   })
   .strict();
 
@@ -40,10 +46,25 @@ export const studioBookingDetailsSchema = studioOfferingSchema
     clientEmail: z.string().trim().email().max(255),
     clientNotes: z.string().trim().max(500).optional(),
     eventLocation: z.string().trim().min(4).max(240).default(STUDIO_LOCATION),
+  })
+  .superRefine((data, ctx) => {
+    if (STUDIO_OFFERINGS[data.offering].assignsShooter && !data.shooterId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["shooterId"],
+        message: "Choose your shooter",
+      });
+    }
   });
 
 export type StudioBookingDetails = z.infer<typeof studioBookingDetailsSchema>;
-export type StudioBookingDraft = { [K in keyof StudioBookingDetails]?: StudioBookingDetails[K] | undefined };
+export type StudioBookingDraft = {
+  [K in keyof StudioBookingDetails]?: StudioBookingDetails[K] | undefined;
+};
+
+export function skipsStudioAgreement(offering: StudioOfferingKey | undefined): boolean {
+  return Boolean(offering && STUDIO_OFFERINGS[offering]?.resource === "studio_acting");
+}
 
 export const STUDIO_TOTAL_STEPS = 5;
 
@@ -53,4 +74,11 @@ export const STUDIO_STEP_META = [
   { step: 3, label: "Your details", microcopy: "Almost there — just the essentials." },
   { step: 4, label: "Review & sign", microcopy: "You're one signature from booked." },
   { step: 5, label: "Payment", microcopy: "Last step. Then it's official." },
+] as const;
+
+export const STUDIO_CLASS_STEP_META = [
+  { step: 1, label: "Experience", microcopy: "Let's start with the session." },
+  { step: 2, label: "Date & time", microcopy: "When should we see you?" },
+  { step: 3, label: "Your details", microcopy: "Almost there — just the essentials." },
+  { step: 4, label: "Payment", microcopy: "Last step. Then it's official." },
 ] as const;

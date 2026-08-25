@@ -63,7 +63,11 @@ function modelFromStatus(status: NonNullable<Status>, settled: boolean): Confirm
   const studioKey = isStudioOfferingKey(status.experience) ? status.experience : null;
   return {
     settled,
-    kind: studioKey ? "studio" : "photobooth",
+    kind: studioKey
+      ? STUDIO_OFFERINGS[studioKey].resource === "studio_acting"
+        ? "class"
+        : "studio"
+      : "photobooth",
     experienceName: studioKey
       ? STUDIO_OFFERINGS[studioKey].name
       : experienceKey

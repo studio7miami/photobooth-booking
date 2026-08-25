@@ -18,7 +18,6 @@ export const PHOTO_TIME_SLOTS: string[] = Array.from({ length: 36 }, (_, i) => {
 });
 
 export const ACTING_CAPACITY = 8;
-export const ACTING_HORIZON_WEEKS = 8;
 
 /**
  * Recurring group class windows. `weekday` is JS getDay() in Eastern

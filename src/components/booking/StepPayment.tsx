@@ -4,14 +4,9 @@ import { Camera, Check } from "lucide-react";
 import { formatCents, REQUIRE_FULL_PAYMENT_WITHIN_DAYS } from "@/config/pricing";
 import { getStripe } from "@/lib/stripe";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { offeringImageFocusClass } from "@/components/studio/StepOffering";
 import { cn } from "@/lib/utils";
-import {
-  EdCaption,
-  EdCard,
-  EdPrimaryButton,
-  EdSpec,
-  EdSpecs,
-} from "./EditorialCard";
+import { EdCaption, EdCard, EdPrimaryButton, EdSpec, EdSpecs } from "./EditorialCard";
 import { PayCheckoutSheet } from "./PayCheckoutSheet";
 import { formatTime } from "./StepTime";
 
@@ -189,7 +184,15 @@ export function OrderLine({
     <div className="flex items-center gap-4">
       <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-border bg-muted">
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="size-full object-cover" />
+          <img
+            src={imageUrl}
+            alt=""
+            className={
+              imageUrl.includes("framehaus-media")
+                ? "size-full object-contain p-1"
+                : cn("size-full object-cover", offeringImageFocusClass(imageUrl) ?? "object-center")
+            }
+          />
         ) : done ? (
           <Check className="size-5" aria-hidden="true" />
         ) : (
@@ -197,14 +200,10 @@ export function OrderLine({
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-display text-lg leading-tight">
-          {experienceName ?? "Studio 7 booking"}
-        </p>
+        <p className="font-display text-lg leading-tight">{experienceName ?? "Studio 7 booking"}</p>
         {when ? <p className="mt-1 text-sm text-muted-foreground">{when}</p> : null}
       </div>
-      <span className="shrink-0 font-display text-lg tabular-nums">
-        {formatCents(totalCents)}
-      </span>
+      <span className="shrink-0 font-display text-lg tabular-nums">{formatCents(totalCents)}</span>
     </div>
   );
 }

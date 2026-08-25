@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 
 import { STUDIO_LOCATION } from "@/config/studio/booking-rules";
-import { finalizeStudioSignatureSchema } from "./agreement-schema";
+import { finalizeStudioSignatureSchema, createStudioClassHoldSchema } from "./agreement-schema";
 import { finalizeStudioSignatureRecord } from "./agreement.server";
 
 export const finalizeStudioSignature = createServerFn({ method: "POST" })
@@ -33,4 +33,11 @@ export const finalizeStudioSignature = createServerFn({ method: "POST" })
     const bookingId = await persistStudioSignedBooking(data.booking, record);
 
     return { ...record, booking_id: bookingId };
+  });
+
+export const createStudioClassHold = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => createStudioClassHoldSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { persistStudioClassHold } = await import("./agreement-persist.server");
+    return persistStudioClassHold(data.booking);
   });

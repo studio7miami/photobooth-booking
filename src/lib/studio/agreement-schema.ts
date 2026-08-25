@@ -13,4 +13,6 @@ export const finalizeStudioSignatureSchema = z.object({
   marketingOptIn: z.boolean(),
 });
 
-export type FinalizeStudioSignatureInput = z.infer<typeof finalizeStudioSignatureSchema>;
+export const createStudioClassHoldSchema = z.object({
+  booking: studioBookingDetailsSchema,
+});

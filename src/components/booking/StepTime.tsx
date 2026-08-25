@@ -112,12 +112,10 @@ export function StepTime({
             <Calendar
               mode="single"
               weekStartsOn={1}
+              startMonth={minDate}
+              defaultMonth={selectedDate ?? minDate}
               {...(selectedDate ? { selected: selectedDate } : {})}
-              {...(selectedDate ? { defaultMonth: selectedDate } : {})}
-              disabled={[
-                { before: minDate },
-                (day) => isDateClosed(occupancy, toISODate(day), slotArgs),
-              ]}
+              disabled={(day) => day < minDate || isDateClosed(occupancy, toISODate(day), slotArgs)}
               onSelect={(d) => {
                 const next = d ? toISODate(d) : undefined;
                 if (next && isDateClosed(occupancy, next, slotArgs)) return;
@@ -248,8 +246,7 @@ function Stepper({
       <div className="mt-3 flex items-center justify-between gap-4">
         <div>
           <p className="text-4xl font-semibold leading-none tracking-tight tabular-nums">
-            {value}{" "}
-            <span className="text-base font-normal text-muted-foreground">{suffix}</span>
+            {value} <span className="text-base font-normal text-muted-foreground">{suffix}</span>
           </p>
           {note ? (
             <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -279,12 +276,7 @@ function Stepper({
   );
 }
 
-function RoundButton({
-  children,
-  disabled,
-  onClick,
-  ...rest
-}: React.ComponentProps<"button">) {
+function RoundButton({ children, disabled, onClick, ...rest }: React.ComponentProps<"button">) {
   return (
     <button
       type="button"

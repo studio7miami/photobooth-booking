@@ -1,4 +1,4 @@
-import { renderStudioAgreement, STUDIO_AGREEMENT_TEMPLATE_VERSION } from "@/config/studio/agreement";
+import { renderStudioAgreement } from "@/config/studio/agreement";
 import type { StudioAgreementVars } from "@/config/studio/agreement";
 import { calculateStudioPrice } from "@/config/studio/offerings";
 import { balanceDueDate } from "@/config/pricing";
@@ -24,7 +24,7 @@ export async function finalizeStudioSignatureRecord(args: {
   return {
     bookingStatus: "agreement_signed",
     agreement_signed: true,
-    agreement_template_version: STUDIO_AGREEMENT_TEMPLATE_VERSION,
+    agreement_template_version: rendered.version,
     agreement_content_hash: hash,
     signature_value: args.signatureValue,
     signer_name: args.signerName,
@@ -42,7 +42,7 @@ export async function finalizeStudioSignatureRecord(args: {
       to_state: "agreement_signed",
       actor: "client",
       meta: {
-        agreement_template_version: STUDIO_AGREEMENT_TEMPLATE_VERSION,
+        agreement_template_version: rendered.version,
         agreement_content_hash: hash,
         signer_ip: ip,
         signer_user_agent: userAgent,

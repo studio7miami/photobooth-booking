@@ -78,10 +78,14 @@ function loadCredentials(): ServiceAccount | null {
   }
   try {
     const filePath = isAbsolute(relative) ? relative : resolve(process.cwd(), relative);
-    const parsed = parseAccount(JSON.parse(readFileSync(filePath, "utf8")) as Partial<ServiceAccount>);
+    const parsed = parseAccount(
+      JSON.parse(readFileSync(filePath, "utf8")) as Partial<ServiceAccount>,
+    );
     credentials = parsed;
     if (!parsed) {
-      console.error("[google-calendar] service account JSON is missing client_email or private_key");
+      console.error(
+        "[google-calendar] service account JSON is missing client_email or private_key",
+      );
     }
     return parsed;
   } catch (error) {
@@ -272,18 +276,22 @@ export type PaidBookingCalendarInput = {
   payment_mode: string | null;
   product?: string | null;
   resource?: string | null;
+  shooter_name?: string | null;
 };
 
 function packageLabel(experience: string | null): string {
   if (experience === "social") return "The Miami Social";
   if (experience === "luxe") return "The Miami Luxe";
   if (experience === "classic") return "The Miami Classic";
-  if (experience === "framehaus") return "Framehaus Media";
+  if (experience === "framehaus") return "Digitals + Comp Cards w/ Framehaus Media";
   if (experience === "portraits") return "Portraits";
+  if (experience === "sports_media") return "Sports Media";
   if (experience === "beauty") return "Beauty Headshots";
   if (experience === "theatrical") return "Theatrical Headshots";
   if (experience === "headshot") return "Standard Headshots";
   if (experience === "passport") return "Passport Photos";
+  if (experience === "photo_studio") return "Photo Studio Rental";
+  if (experience === "full_studio") return "Full Studio Rental";
   if (experience === "acting_cj") return "Acting Class w/ CJ";
   return experience ? "Studio session" : "Photobooth";
 }
@@ -324,7 +332,11 @@ export async function upsertPaidBookingEvent(
 
   const durationMinutes =
     Number(booking.duration_minutes) ||
-    (Number(booking.duration_hours) ? Number(booking.duration_hours) * 60 : kind === "studio_photo" ? 90 : 120);
+    (Number(booking.duration_hours)
+      ? Number(booking.duration_hours) * 60
+      : kind === "studio_photo"
+        ? 90
+        : 120);
   const timeZone = calendarTimezone();
   const startMs = wallTimeToUtcMs(date, startTime, timeZone);
   const endMs = startMs + durationMinutes * 60 * 1000;
@@ -344,7 +356,7 @@ export async function upsertPaidBookingEvent(
   const durationLabel =
     durationMinutes < 60
       ? `${durationMinutes} min`
-      : `${Math.round(durationMinutes / 60 * 10) / 10} hour${durationMinutes === 60 ? "" : "s"}`;
+      : `${Math.round((durationMinutes / 60) * 10) / 10} hour${durationMinutes === 60 ? "" : "s"}`;
   const prefix = kind === "studio_photo" ? "Studio" : "Photobooth";
 
   const lines = [
@@ -353,6 +365,7 @@ export async function upsertPaidBookingEvent(
     booking.client_email ? `Email: ${booking.client_email}` : null,
     booking.client_phone ? `Phone: ${booking.client_phone}` : null,
     booking.event_type ? `Event: ${booking.event_type}` : null,
+    booking.shooter_name ? `Shooter: ${booking.shooter_name}` : null,
     booking.payment_mode === "deposit" ? "Payment: deposit" : "Payment: paid in full",
     `Booking ID: ${booking.id}`,
   ].filter(Boolean);
