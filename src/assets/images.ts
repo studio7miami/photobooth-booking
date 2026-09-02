@@ -1,5 +1,34 @@
 import { publicUrl } from "@/lib/public-base";
 
+const OG_ORIGIN = "https://book.studio7.miami";
+
+export const SOCIAL_PREVIEW = {
+  studio: {
+    url: `${OG_ORIGIN}/images/og-studio.jpg`,
+    width: "1024",
+    height: "537",
+    alt: "Studio 7 Miami",
+  },
+  photobooth: {
+    url: `${OG_ORIGIN}/images/og-book-your-experience.png`,
+    width: "1024",
+    height: "409",
+    alt: "Studio 7 Photobooth",
+  },
+} as const;
+
+export function socialPreviewMeta(kind: keyof typeof SOCIAL_PREVIEW) {
+  const image = SOCIAL_PREVIEW[kind];
+  return [
+    { property: "og:image", content: image.url },
+    { property: "og:image:width", content: image.width },
+    { property: "og:image:height", content: image.height },
+    { property: "og:image:alt", content: image.alt },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:image", content: image.url },
+  ];
+}
+
 export const IMAGES = {
   logo: publicUrl("/images/studio7-logo.png"),
   photoboothLogo: publicUrl("/images/studio7-photobooth-logo.png"),
@@ -8,8 +37,8 @@ export const IMAGES = {
   luxe: publicUrl("/images/exp-luxe-new.jpg"),
   palm: publicUrl("/images/palm.png"),
   /** Absolute URL so link previews can fetch the image. */
-  og: "https://book.studio7.miami/images/og-book-your-experience.png",
-  ogPhotobooth: "https://book.studio7.miami/images/og-book-your-experience.png",
+  og: SOCIAL_PREVIEW.studio.url,
+  ogPhotobooth: SOCIAL_PREVIEW.photobooth.url,
 } as const;
 
 /** Studio offering card + payment thumbs. Photobooth keeps `IMAGES` above. */

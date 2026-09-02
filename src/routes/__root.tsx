@@ -11,7 +11,7 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
-import { IMAGES } from "@/assets/images";
+import { socialPreviewMeta } from "@/assets/images";
 import { publicUrl } from "@/lib/public-base";
 import { getPaymentsBrowserConfig } from "@/lib/payments.functions";
 import { setPaymentsClientToken } from "@/lib/stripe";
@@ -101,13 +101,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Book Studio 7 Miami portraits, headshots, passport photos, acting class, or a photobooth rental.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: IMAGES.og },
-      { property: "og:image:width", content: "1024" },
-      { property: "og:image:height", content: "409" },
-      { property: "og:image:alt", content: "Studio 7 Miami" },
-      { name: "twitter:card", content: "summary_large_image" },
+      ...socialPreviewMeta("studio"),
       { name: "twitter:title", content: "Studio 7 Miami · Book" },
-      { name: "twitter:image", content: IMAGES.og },
     ],
     links: [
       {

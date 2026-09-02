@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { IMAGES } from "@/assets/images";
+import { socialPreviewMeta } from "@/assets/images";
 import { StudioBookingFlow } from "@/components/studio/StudioBookingFlow";
 import { parseStudioOfferingParam, STUDIO_OFFERING_SLUG } from "@/config/studio/offerings";
 
@@ -36,13 +36,8 @@ export const Route = createFileRoute("/")({
           "Studio rentals, portraits, sports media, headshots, and class — book your studio session.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: IMAGES.og },
-      { property: "og:image:width", content: "1024" },
-      { property: "og:image:height", content: "409" },
-      { property: "og:image:alt", content: "Studio 7 Miami" },
-      { name: "twitter:card", content: "summary_large_image" },
+      ...socialPreviewMeta("studio"),
       { name: "twitter:title", content: "Studio 7 Miami · Book" },
-      { name: "twitter:image", content: IMAGES.og },
     ],
   }),
   component: Index,

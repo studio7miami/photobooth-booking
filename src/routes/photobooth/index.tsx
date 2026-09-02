@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { IMAGES } from "@/assets/images";
+import { socialPreviewMeta } from "@/assets/images";
 import { BookingFlow } from "@/components/booking/BookingFlow";
 
 export const Route = createFileRoute("/photobooth/")({
@@ -18,13 +18,8 @@ export const Route = createFileRoute("/photobooth/")({
           "Choose your experience, pick your date, and lock in your event with Studio 7 Miami.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: IMAGES.ogPhotobooth },
-      { property: "og:image:width", content: "1024" },
-      { property: "og:image:height", content: "409" },
-      { property: "og:image:alt", content: "Studio 7 Miami photobooth" },
-      { name: "twitter:card", content: "summary_large_image" },
+      ...socialPreviewMeta("photobooth"),
       { name: "twitter:title", content: "Studio 7 Photobooth · Book" },
-      { name: "twitter:image", content: IMAGES.ogPhotobooth },
     ],
   }),
   component: PhotoboothIndex,

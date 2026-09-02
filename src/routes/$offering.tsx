@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { IMAGES } from "@/assets/images";
+import { socialPreviewMeta } from "@/assets/images";
 import { StudioBookingFlow } from "@/components/studio/StudioBookingFlow";
 import { BookingFlow } from "@/components/booking/BookingFlow";
 import {
@@ -60,13 +60,8 @@ export const Route = createFileRoute("/$offering")({
           { property: "og:title", content: title },
           { property: "og:description", content: EXPERIENCES[booth].tagline },
           { property: "og:type", content: "website" },
-          { property: "og:image", content: IMAGES.ogPhotobooth },
-          { property: "og:image:width", content: "1024" },
-          { property: "og:image:height", content: "409" },
-          { property: "og:image:alt", content: "Studio 7 Photobooth" },
-          { name: "twitter:card", content: "summary_large_image" },
+          ...socialPreviewMeta("photobooth"),
           { name: "twitter:title", content: title },
-          { name: "twitter:image", content: IMAGES.ogPhotobooth },
         ],
       };
     }
@@ -86,13 +81,8 @@ export const Route = createFileRoute("/$offering")({
           content: `Book ${name ?? "your session"} at Studio 7 Miami.`,
         },
         { property: "og:type", content: "website" },
-        { property: "og:image", content: IMAGES.og },
-        { property: "og:image:width", content: "1024" },
-        { property: "og:image:height", content: "409" },
-        { property: "og:image:alt", content: "Studio 7 Miami" },
-        { name: "twitter:card", content: "summary_large_image" },
+        ...socialPreviewMeta("studio"),
         { name: "twitter:title", content: title },
-        { name: "twitter:image", content: IMAGES.og },
       ],
     };
   },
