@@ -5,7 +5,7 @@ import { bookingDetailsSchema } from "./booking-schema";
 export const finalizeSignatureSchema = z.object({
   booking: bookingDetailsSchema,
   signerName: z.string().trim().min(2, { message: "Type your full legal name" }).max(120),
-  /** PNG data URL of the drawn signature. */
+  /** Drawn signature as a JPEG (or PNG) data URL. */
   signatureValue: z
     .string()
     .regex(/^data:image\/(png|jpeg);base64,/, { message: "Draw your signature" })

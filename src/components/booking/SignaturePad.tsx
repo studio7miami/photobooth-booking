@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Canvas signature capture — finger, stylus, mouse. Emits a PNG data URL
- * on every stroke end, and null when cleared.
+ * Canvas signature capture — finger, stylus, mouse. Emits a JPEG data URL
+ * on every stroke end, and null when cleared. Ink is not wiped on resize.
  */
 export function SignaturePad({
   onChange,
@@ -16,9 +16,35 @@ export function SignaturePad({
   const dirty = useRef(false);
   const [hasInk, setHasInk] = useState(false);
 
+  function strokeStyle(ctx: CanvasRenderingContext2D, dpr: number) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#111111";
+  }
+
+  function fitCanvas(force = false) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (dirty.current && !force) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const width = Math.max(1, Math.round(rect.width * dpr));
+    const height = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    strokeStyle(ctx, dpr);
+  }
+
   function exportSignature(): string | null {
     const canvas = canvasRef.current;
-    if (!canvas) return null;
+    if (!canvas || !dirty.current) return null;
     const rect = canvas.getBoundingClientRect();
     const width = Math.max(1, Math.round(rect.width));
     const height = Math.max(1, Math.round(rect.height));
@@ -36,24 +62,15 @@ export function SignaturePad({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const resize = () => {
-      if (dirty.current) return;
-      const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "#111111";
-    };
+    const resize = () => fitCanvas();
     resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
   function pos(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -63,6 +80,7 @@ export function SignaturePad({
 
   function start(e: React.PointerEvent<HTMLCanvasElement>) {
     e.preventDefault();
+    fitCanvas();
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -92,13 +110,10 @@ export function SignaturePad({
   }
 
   function clear() {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     dirty.current = false;
     setHasInk(false);
     onChange(null);
+    fitCanvas(true);
   }
 
   return (
@@ -120,7 +135,6 @@ export function SignaturePad({
           onPointerDown={start}
           onPointerMove={move}
           onPointerUp={end}
-          onPointerLeave={end}
           onPointerCancel={end}
           className="h-40 w-full touch-none rounded-[16px]"
           aria-label="Signature canvas"

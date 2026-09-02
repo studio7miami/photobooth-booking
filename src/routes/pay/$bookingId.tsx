@@ -93,6 +93,8 @@ function PayBooking() {
       kind={display.kind}
       {...(display.experienceKey ? { experienceKey: display.experienceKey } : {})}
       {...(display.offeringKey ? { offeringKey: display.offeringKey } : {})}
+      {...(status.duration_hours != null ? { durationHours: Number(status.duration_hours) } : {})}
+      {...(status.duration_minutes != null ? { durationMinutes: Number(status.duration_minutes) } : {})}
     />
   );
 }

@@ -26,6 +26,7 @@ import { isHoldActive } from "@/lib/hold";
 import { getStripe } from "@/lib/stripe";
 import { IMAGES } from "@/assets/images";
 import { photoboothPageTitle } from "@/lib/page-title";
+import { errorMessage } from "@/lib/error-message";
 import { StepShell } from "./StepShell";
 import { MotionEnter } from "./motion";
 import { EXPERIENCE_IMAGES, StepExperience } from "./StepExperience";
@@ -326,8 +327,7 @@ export function BookingFlow({
       setErrors({});
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      toast(message.trim() || "We couldn't record your signature. Please try again.");
+      toast(errorMessage(error, "We couldn't record your signature. Please try again."));
     } finally {
       setSubmitting(false);
     }

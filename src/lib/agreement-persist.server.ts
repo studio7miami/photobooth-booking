@@ -1,3 +1,4 @@
+import { errorMessage } from "./error-message";
 import { calculatePrice } from "@/config/pricing";
 import { formatEmail } from "./format-display";
 import type { BookingDetails } from "./booking-schema";
@@ -71,7 +72,7 @@ export async function persistSignedBooking(
   await expireStaleHolds();
   const existingId = await findOpenHold(supabase, booking);
   if (existingId) {
-    await supabase
+    const { error } = await supabase
       .from("bookings")
       .update({
         signature_value: record.signature_value,
@@ -83,6 +84,7 @@ export async function persistSignedBooking(
         agreement_content_hash: record.agreement_content_hash,
       } as never)
       .eq("id", existingId);
+    if (error) throw new Error(errorMessage(error, "Could not save signature"));
     await expireOtherHolds(supabase, formatEmail(booking.clientEmail), existingId);
     return existingId;
   }
@@ -141,7 +143,7 @@ export async function persistSignedBooking(
     .select("id")
     .single();
 
-  if (error || !data) throw error ?? new Error("Could not save booking");
+  if (error || !data) throw new Error(errorMessage(error, "Could not save booking"));
   const bookingId = (data as { id: string }).id;
   await expireOtherHolds(supabase, formatEmail(booking.clientEmail), bookingId);
 

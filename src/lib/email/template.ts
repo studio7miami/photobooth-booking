@@ -25,8 +25,8 @@ export const STUDIO_ADDRESS_HTML =
   '<span style="display:block">638 NW 62nd St</span><span style="display:block">Miami, FL 33150</span>';
 
 export function studioFooterHtml() {
-  return `<p style="margin:0 0 6px;font-size:12px;line-height:1.6;color:#6F6F6B;">Studio 7 Miami<br>638 NW 62nd St<br>Miami, FL 33150</p>
-<p style="margin:0;font-size:12px;line-height:1.6;"><a href="https://studio7.miami" style="color:#111;text-decoration:none;">studio7.miami</a><span style="color:#C8C8C4;"> · </span><a href="https://book.studio7.miami" style="color:#111;text-decoration:none;">book.studio7.miami</a></p>`;
+  return `<p style="margin:0 0 6px;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;color:#6F6F6B;">Studio 7 Miami<br>638 NW 62nd St<br>Miami, FL 33150</p>
+<p style="margin:0;font-family:${EMAIL_FONT};font-size:12px;line-height:1.6;"><a href="https://studio7.miami" style="color:#111;text-decoration:none;">studio7.miami</a><span style="color:#C8C8C4;"> · </span><a href="https://book.studio7.miami" style="color:#111;text-decoration:none;">book.studio7.miami</a></p>`;
 }
 
 export function renderStudioEmail(args: {
@@ -45,7 +45,7 @@ export function renderStudioEmail(args: {
     .join("");
   const cta = args.cta
     ? `<tr><td style="padding:20px 28px 8px;" align="center"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#111111" style="background:#111;border-radius:999px;">
-<a href="${escapeHtml(args.cta.href)}" style="display:inline-block;padding:14px 28px;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:#F7F7F5;">${escapeHtml(args.cta.label)}</a>
+<a href="${escapeHtml(args.cta.href)}" style="display:inline-block;padding:14px 28px;font-family:${EMAIL_FONT};font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:#F7F7F5;">${escapeHtml(args.cta.label)}</a>
 </td></tr></table></td></tr>`
     : "";
 
@@ -58,6 +58,7 @@ export function renderStudioEmail(args: {
 <style>
   .s7-email-title {
     margin: 0 0 10px;
+    font-family: ${EMAIL_FONT};
     font-size: 28px;
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -109,9 +110,9 @@ export function renderStudioEmail(args: {
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#F7F7F5;"><tr><td align="center">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background:#F7F7F5;">
 <tr><td bgcolor="#000000" style="background:#000;padding:0;text-align:center;line-height:0;"><img src="${EMAIL_LOGO_URL}" width="600" alt="Studio 7 Miami" style="display:block;width:100%;max-width:600px;height:auto;border:0;background:#000;"></td></tr>
-<tr><td class="s7-email-pad" style="padding:36px 28px 12px;"><p style="margin:0 0 8px;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6F6F6B;">${escapeHtml(args.kicker)}</p>
-<h1 class="s7-email-title" style="margin:0 0 10px;font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.15;color:#111;white-space:nowrap;">${escapeHtml(args.headline)}</h1>
-<p class="s7-email-intro" style="margin:0;font-size:15px;line-height:1.6;color:#6F6F6B;">${escapeHtml(args.intro)}</p></td></tr>
+<tr><td class="s7-email-pad" style="padding:36px 28px 12px;"><p style="margin:0 0 8px;font-family:${EMAIL_FONT};font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6F6F6B;">${escapeHtml(args.kicker)}</p>
+<h1 class="s7-email-title" style="margin:0 0 10px;font-family:${EMAIL_FONT};font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.15;color:#111;white-space:nowrap;">${escapeHtml(args.headline)}</h1>
+<p class="s7-email-intro" style="margin:0;font-family:${EMAIL_FONT};font-size:15px;line-height:1.6;color:#6F6F6B;">${escapeHtml(args.intro)}</p></td></tr>
 <tr><td style="padding:20px 28px 8px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FCFCFA;border:1px solid rgba(17,17,17,.08);border-radius:24px;">
 <tr><td style="padding:22px 24px 8px;"><p style="margin:0;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6F6F6B;">${escapeHtml(args.cardLabel)}</p></td></tr>
 <tr><td style="padding:0 24px 8px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${specHtml}</table></td></tr></table></td></tr>

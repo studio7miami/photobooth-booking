@@ -437,7 +437,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
   const { data } = await supabase
     .from("bookings")
     .select(
-      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_status, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location, stripe_customer_id",
+      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_status, balance_link, paid_at, total_cents, experience, event_date, event_start_time, duration_hours, duration_minutes, client_name, client_email, client_phone, event_location, stripe_customer_id",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -455,6 +455,8 @@ export async function readBookingPaymentStatus(bookingId: string) {
     experience: string | null;
     event_date: string | null;
     event_start_time: string | null;
+    duration_hours: number | null;
+    duration_minutes: number | null;
     client_name: string | null;
     client_email: string | null;
     client_phone: string | null;
@@ -467,7 +469,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
     const { data: again } = await supabase
       .from("bookings")
       .select(
-        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_status, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location",
+        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_status, balance_link, paid_at, total_cents, experience, event_date, event_start_time, duration_hours, duration_minutes, client_name, client_email, client_phone, event_location",
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -484,6 +486,8 @@ export async function readBookingPaymentStatus(bookingId: string) {
       experience: string | null;
       event_date: string | null;
       event_start_time: string | null;
+      duration_hours: number | null;
+      duration_minutes: number | null;
       client_name: string | null;
       client_email: string | null;
       client_phone: string | null;

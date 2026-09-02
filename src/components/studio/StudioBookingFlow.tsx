@@ -44,6 +44,7 @@ import { StepPayment } from "@/components/booking/StepPayment";
 import { PaymentConfirmation } from "@/components/booking/PaymentConfirmation";
 import { HoldTimer } from "@/components/booking/HoldTimer";
 import { MotionProvider, parseMotionVariant, type MotionVariant } from "@/components/booking/motion";
+import { errorMessage } from "@/lib/error-message";
 import { studioPageTitle } from "@/lib/page-title";
 import { StepOffering, STUDIO_OFFERING_IMAGES } from "./StepOffering";
 import { StepStudioTime } from "./StepTime";
@@ -395,12 +396,7 @@ export function StudioBookingFlow({
       setErrors({});
       toast("Seat held. Payment is next.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      toast(
-        message.includes("available") || message.includes("full")
-          ? message
-          : "We couldn't hold this seat. Please try again.",
-      );
+      toast(errorMessage(error, "We couldn't hold this seat. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -437,8 +433,7 @@ export function StudioBookingFlow({
       setErrors({});
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      toast(message.trim() || "We couldn't record your signature. Please try again.");
+      toast(errorMessage(error, "We couldn't record your signature. Please try again."));
     } finally {
       setSubmitting(false);
     }

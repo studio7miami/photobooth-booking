@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { IMAGES } from "@/assets/images";
 import {
   calculatePrice,
@@ -91,16 +89,26 @@ export function BalancePayScreen({
   const depositCents = Math.max(0, totalCents - balanceCents);
 
   const boothPrice = experienceKey
-    ? calculatePrice({
-        experience: experienceKey,
-        durationHours: durationHours ?? EXPERIENCES[experienceKey].baseHours,
-      })
+    ? {
+        ...calculatePrice({
+          experience: experienceKey,
+          durationHours: durationHours ?? EXPERIENCES[experienceKey].baseHours,
+        }),
+        totalCents,
+        depositCents,
+        balanceCents,
+      }
     : null;
   const studioPrice = offeringKey
-    ? calculateStudioPrice({
-        offering: offeringKey,
-        durationMinutes: durationMinutes ?? STUDIO_OFFERINGS[offeringKey].baseMinutes,
-      })
+    ? {
+        ...calculateStudioPrice({
+          offering: offeringKey,
+          durationMinutes: durationMinutes ?? STUDIO_OFFERINGS[offeringKey].baseMinutes,
+        }),
+        totalCents,
+        depositCents,
+        balanceCents,
+      }
     : null;
 
   const glanceContinue = () => undefined;

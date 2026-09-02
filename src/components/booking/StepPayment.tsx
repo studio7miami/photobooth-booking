@@ -68,9 +68,11 @@ export function StepPayment({
 
   const effectiveMode: PaymentMode = requiresFull ? "full" : mode;
   const payFull = effectiveMode === "full";
+  const dueDate =
+    remainingOnly || !payFull ? balanceDueDate : todayEastern();
   const dueLabel = useMemo(
-    () => formatLongDate(remainingOnly || !payFull ? balanceDueDate : todayEastern()),
-    [balanceDueDate, payFull, remainingOnly],
+    () => (/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ? formatLongDate(dueDate) : ""),
+    [dueDate],
   );
   const chargeCents = remainingOnly ? balanceCents : payFull ? totalCents : depositCents;
 
@@ -104,10 +106,12 @@ export function StepPayment({
           ) : payFull ? null : (
             <EdSpec label="Deposit (50%)" value={formatInstallmentTotal(1, depositCents)} />
           )}
-          <EdSpec
-            label={remainingOnly || !payFull ? "Balance due date" : "Due"}
-            value={dueLabel}
-          />
+          {dueLabel ? (
+            <EdSpec
+              label={remainingOnly || !payFull ? "Balance due date" : "Due"}
+              value={dueLabel}
+            />
+          ) : null}
         </EdSpecs>
 
         {remainingOnly ? null : requiresFull ? (
@@ -162,7 +166,9 @@ export function StepPayment({
         eventDate={eventDate}
         eventStartTime={eventStartTime}
         {...(remainingOnly || !payFull
-          ? { dueNote: `Balance ${formatCents(balanceCents)} · ${formatLongDate(balanceDueDate)}` }
+          ? dueLabel
+            ? { dueNote: `Balance ${formatCents(balanceCents)} · ${dueLabel}` }
+            : { dueNote: `Balance ${formatCents(balanceCents)}` }
           : {})}
         demo={demo}
       />
