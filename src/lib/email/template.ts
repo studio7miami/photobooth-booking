@@ -114,7 +114,7 @@ export function renderStudioEmail(args: {
 <h1 class="s7-email-title" style="margin:0 0 10px;font-family:${EMAIL_FONT};font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.15;color:#111;white-space:nowrap;">${escapeHtml(args.headline)}</h1>
 <p class="s7-email-intro" style="margin:0;font-family:${EMAIL_FONT};font-size:15px;line-height:1.6;color:#6F6F6B;">${escapeHtml(args.intro)}</p></td></tr>
 <tr><td style="padding:20px 28px 8px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#FCFCFA;border:1px solid rgba(17,17,17,.08);border-radius:24px;">
-<tr><td style="padding:22px 24px 8px;"><p style="margin:0;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6F6F6B;">${escapeHtml(args.cardLabel)}</p></td></tr>
+<tr><td style="padding:22px 24px 8px;"><p style="margin:0;font-family:${EMAIL_FONT};font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#6F6F6B;">${escapeHtml(args.cardLabel)}</p></td></tr>
 <tr><td style="padding:0 24px 8px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">${specHtml}</table></td></tr></table></td></tr>
 ${cta}
 <tr><td style="padding:28px 28px 40px;text-align:center;">${studioFooterHtml()}
