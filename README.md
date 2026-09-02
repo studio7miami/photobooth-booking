@@ -21,11 +21,11 @@ Public booking for the studio and for photobooth rentals. A guest picks an offer
 
 Same five-step chrome as the booth: experience → date & time → details → sign → pay. Location is always Studio 7 Miami.
 
-1. **Choose a session** — Full Studio or Photo Studio rental, Portraits, Sports Media, Beauty / Theatrical / Standard headshots, Passport Photos, Digitals + Comp Cards w/ Framehaus Media, or Acting Class w/ CJ.
-2. **Pick date and time** — Photo sessions use open 15-minute starts, 10:00 AM – 7:00 PM Eastern, with a 15-minute buffer between bookings. Extra 30-minute time is available once a per-step rate is set in `src/config/studio/offerings.ts`. Studio rentals are billed **by the hour** (Full Studio $155/hr, Photo Studio $75/hr) on the same studio calendar. Acting class is a **group** seat in a published Saturday 2:00 PM class (capacity 8), shown for the current month and the next.
+1. **Choose a session** — Full Studio or Photo Studio rental, Portraits, Sports Media, Beauty / Theatrical / Standard headshots, Passport Photos, Digitals + Comp Cards, or Acting Class w/ CJ. Direct links from [studio7.miami](https://studio7.miami) skip this step — see **Offering links** below.
+2. **Pick date and time** — Photo sessions use open 15-minute starts, 10:00 AM – 7:00 PM Eastern, with a 15-minute buffer between bookings. Extra 30-minute time is available once a per-step rate is set in `src/config/studio/offerings.ts`. Studio rentals are billed **by the hour** (Full Studio $155/hr, Photo Studio $75/hr) on the same studio calendar. Acting class is a **group** session on a published Saturday 2:00 PM class, shown for the current month and the next. There is no seat cap.
 3. **Your details** — Name, email, phone, optional notes.
 4. **Review & sign** — Studio agreement (`studio-v1`). Starts a **10-minute hold**.
-5. **Pay** — Offerings **$225 and up** may take a 50% deposit (full pay if the session is within 3 days). Sessions under $225 — Framehaus, theatrical, standard headshots, sports media, passport, acting class, and short rentals — are **paid in full**. Cards are not saved.
+5. **Pay** — Offerings **$225 and up** may take a 50% deposit (full pay if the session is within 3 days). Sessions under $225 — digitals, theatrical, standard headshots, sports media, passport, acting class, and short rentals — are **paid in full**. Cards are not saved.
 
 Photo occupancy is a dedicated studio/photographer Google Calendar (`GOOGLE_CALENDAR_ID_STUDIO`). Acting class uses CJ's calendar (`GOOGLE_CALENDAR_ID_ACTING`) only as blocks — published class times live in config; paid seats live in the database. Photo and class can overlap.
 
@@ -39,12 +39,29 @@ Photo occupancy is a dedicated studio/photographer Google Calendar (`GOOGLE_CALE
 | Theatrical Headshots                     | 90 min | $165    | Full                                  |
 | Standard Headshots                       | 30 min | $150    | Full                                  |
 | Passport Photos                          | 15 min | $40     | Full                                  |
-| Digitals + Comp Cards w/ Framehaus Media | 90 min | $165    | Full                                  |
-| Acting Class w/ CJ                       | 2 hr   | $50     | Full (group seat)                     |
+| Digitals + Comp Cards                    | 90 min | $165    | Full                                  |
+| Acting Class w/ CJ                       | 2 hr   | $50     | Full                                  |
 
 After payment, photo sessions and studio rentals are written to the studio calendar. Acting class does **not** create one calendar event per student.
 
 Stripe lookup keys (optional — missing keys do not block checkout): `s7_photo_studio`, `s7_full_studio`, `s7_sports_media`.
+
+### Offering links
+
+Use these as the **Book** / **Book Yours** hrefs on studio7.miami. Each one opens the date-and-time step with that session already selected.
+
+| Service | Link |
+| --- | --- |
+| Digitals + Comp Cards | https://book.studio7.miami/digitals |
+| Portraits | https://book.studio7.miami/portraits |
+| Beauty Headshots | https://book.studio7.miami/beauty-headshots |
+| Theatrical Headshots | https://book.studio7.miami/theatrical-headshots |
+| Standard Headshots | https://book.studio7.miami/standard-headshots |
+| Passport Photos | https://book.studio7.miami/passport-photos |
+| Sports Media | https://book.studio7.miami/sports-media |
+| Photo Studio Rental | https://book.studio7.miami/photo-studio |
+| Full Studio Rental | https://book.studio7.miami/full-studio |
+| Acting Class w/ CJ | https://book.studio7.miami/acting |
 
 ---
 
@@ -135,7 +152,7 @@ flowchart LR
 - Studio photo: `GOOGLE_CALENDAR_ID_STUDIO`.
 - Acting class blocks: `GOOGLE_CALENDAR_ID_ACTING`.
 
-**Team directory (optional)** — Portraits lets the guest pick a photographer. Bookable names come from the team app Supabase (`users` where `bookable` is true). Set `TEAM_SUPABASE_URL` and `TEAM_SUPABASE_SERVICE_ROLE_KEY` (or a publishable key that can read that table). Optional: `TEAM_SUPABASE_USERS_TABLE` if the table is not `users`. Expected columns: `id`, `bookable`, a name (`full_name` / `display_name` / `name`), optional `portfolio_url` / `website`, optional `avatar_url`. The list is filtered to people free at the selected date and time (anyone already booked on an overlapping studio session is hidden).
+**Team directory (optional)** — Photo sessions (portraits, headshots, sports media, passport, and digitals) let the guest pick a photographer. Bookable names come from the team app Supabase (`users` where `bookable` is true). Set `TEAM_SUPABASE_URL` and `TEAM_SUPABASE_SERVICE_ROLE_KEY` (or a publishable key that can read that table). Optional: `TEAM_SUPABASE_USERS_TABLE` if the table is not `users`. Expected columns: `id`, `bookable`, a name (`full_name` / `display_name` / `name`), optional `portfolio_url` / `website`, optional `avatar_url`. The list is filtered to people free at the selected date and time (anyone already booked on an overlapping studio session is hidden).
 
 The guest is **not** invited to calendar events.
 

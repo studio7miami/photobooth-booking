@@ -9,6 +9,7 @@ import {
 import { canStartBalancePayment, canStartPayment, type BookingStatus } from "./booking-states";
 import { getAdmin, logBookingEvent, transitionBooking } from "./booking.server";
 import { isHoldActive } from "./hold";
+import { bookingPayUrl } from "./site-origin";
 import { createStripeClient, getStripeErrorMessage, type StripeEnv } from "./stripe.server";
 
 type StartArgs = {
@@ -377,7 +378,7 @@ export async function applySuccessfulPayment(facts: PaymentFacts) {
       paid_at: new Date().toISOString(),
       payment_mode: facts.paymentMode,
       ...(facts.paymentMode === "deposit"
-        ? { balance_status: "pending" }
+        ? { balance_status: "pending", balance_link: bookingPayUrl(facts.bookingId) }
         : { balance_status: "paid", balance_cents: 0 }),
     },
     meta: { payment_intent_id: facts.paymentIntentId, amount_cents: facts.amountCents },
@@ -436,7 +437,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
   const { data } = await supabase
     .from("bookings")
     .select(
-      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location, stripe_customer_id",
+      "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_status, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location, stripe_customer_id",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -447,6 +448,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
     amount_paid_cents: number;
     balance_cents: number | null;
     balance_due_date: string | null;
+    balance_status: string | null;
     balance_link: string | null;
     paid_at: string | null;
     total_cents: number | null;
@@ -465,7 +467,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
     const { data: again } = await supabase
       .from("bookings")
       .select(
-        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location",
+        "status, payment_mode, amount_paid_cents, balance_cents, balance_due_date, balance_status, balance_link, paid_at, total_cents, experience, event_date, event_start_time, client_name, client_email, client_phone, event_location",
       )
       .eq("id", bookingId)
       .maybeSingle();
@@ -475,6 +477,7 @@ export async function readBookingPaymentStatus(bookingId: string) {
       amount_paid_cents: number;
       balance_cents: number | null;
       balance_due_date: string | null;
+      balance_status: string | null;
       balance_link: string | null;
       paid_at: string | null;
       total_cents: number | null;

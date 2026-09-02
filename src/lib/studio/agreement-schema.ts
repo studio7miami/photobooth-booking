@@ -7,8 +7,8 @@ export const finalizeStudioSignatureSchema = z.object({
   signerName: z.string().trim().min(2, { message: "Type your full legal name" }).max(120),
   signatureValue: z
     .string()
-    .startsWith("data:image/png;base64,", { message: "Draw your signature" })
-    .max(500_000),
+    .regex(/^data:image\/(png|jpeg);base64,/, { message: "Draw your signature" })
+    .max(2_000_000),
   consent: z.literal(true, { message: "You must agree before signing" }),
   marketingOptIn: z.boolean(),
 });

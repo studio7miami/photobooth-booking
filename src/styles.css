@@ -238,6 +238,81 @@
   border-bottom: 1px solid var(--line);
 }
 
+@keyframes s7-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes s7-soft {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes s7-slide {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.s7-enter {
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.s7-enter-rise {
+  animation-name: s7-rise;
+  animation-duration: 1.2s;
+}
+
+/* Quiet, warm lift toward the viewer — offering cards only. */
+.ed-card-hover {
+  position: relative;
+  z-index: 0;
+  transition:
+    transform 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.9s ease;
+}
+
+.ed-card-hover:hover {
+  z-index: 10;
+  transform: scale(1.012);
+  background-color: color-mix(in oklab, var(--surface) 90%, oklch(0.9 0.045 72));
+  box-shadow:
+    10px 16px 28px oklch(0.48 0.05 68 / 0.12),
+    -7px -8px 18px oklch(1 0.015 85 / 0.78);
+}
+
+.s7-enter-soft {
+  animation-name: s7-soft;
+  animation-duration: 0.92s;
+}
+
+.s7-enter-slide {
+  animation-name: s7-slide;
+  animation-duration: 0.58s;
+}
+
 /* Solid ink pill with uppercase label. */
 @utility ed-pill {
   background-color: var(--btn);
@@ -252,5 +327,9 @@
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .ed-card-hover:hover {
+    transform: none;
   }
 }

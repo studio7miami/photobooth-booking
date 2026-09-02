@@ -8,6 +8,7 @@ import {
   type StudioOffering,
   type StudioOfferingKey,
 } from "@/config/studio/offerings";
+import { MotionEnter } from "@/components/booking/motion";
 import { cn } from "@/lib/utils";
 
 export const STUDIO_OFFERING_IMAGES: Record<
@@ -26,7 +27,7 @@ export const STUDIO_OFFERING_IMAGES: Record<
   },
   framehaus: {
     url: STUDIO_IMAGES.framehaus,
-    alt: "Digitals and comp cards with Framehaus Media",
+    alt: "Studio 7 Miami",
     contain: true,
   },
   portraits: {
@@ -72,7 +73,7 @@ export function offeringImageFocusClass(url: string | undefined): string | undef
 }
 
 export function offeringThumbFitClass(image: { contain?: boolean; focus?: string }) {
-  if (image.contain) return "bg-background object-contain p-1";
+  if (image.contain) return "bg-background object-contain p-2";
   return cn("object-cover", image.focus ?? "object-center");
 }
 
@@ -84,22 +85,25 @@ function OfferingCard({
   offering,
   selected,
   onSelect,
+  delayMs,
 }: {
   offering: StudioOffering;
   selected: boolean;
   onSelect: () => void;
+  delayMs: number;
 }) {
   const image = STUDIO_OFFERING_IMAGES[offering.key];
   const meta = `${offering.durationLabel.toUpperCase()} · ${offering.priceLabel.toUpperCase()}`;
 
   return (
+    <MotionEnter whenVisible delayMs={delayMs} className="h-full min-w-0">
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        "ed-card flex h-full min-w-0 w-full flex-col p-4 text-left transition-colors sm:p-5",
-        selected ? "border-foreground" : "hover:border-foreground/40",
+        "ed-card ed-card-hover flex h-full min-w-0 w-full flex-col p-4 text-left sm:p-5",
+        selected ? "border-foreground" : "hover:border-[oklch(0.52_0.04_70/0.28)]",
       )}
     >
       <div className="flex min-h-[52px] items-start gap-3">
@@ -155,6 +159,38 @@ function OfferingCard({
         {selected ? "[ Selected ]" : "[ Select ]"}
       </span>
     </button>
+    </MotionEnter>
+  );
+}
+
+function OfferingSection({
+  label,
+  offerings,
+  value,
+  onChange,
+}: {
+  label: string;
+  offerings: StudioOffering[];
+  value?: StudioOfferingKey;
+  onChange: (key: StudioOfferingKey) => void;
+}) {
+  return (
+    <div>
+      <MotionEnter whenVisible delayMs={0}>
+        <p className="label-caps text-[10px] text-muted-foreground">{label}</p>
+      </MotionEnter>
+      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {offerings.map((offering, index) => (
+          <OfferingCard
+            key={offering.key}
+            offering={offering}
+            selected={value === offering.key}
+            onSelect={() => onChange(offering.key)}
+            delayMs={70 + (index % 2) * 140}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -167,55 +203,34 @@ export function StepOffering({
 }) {
   return (
     <div className="space-y-8">
-      <div>
-        <p className="label-caps text-[10px] text-muted-foreground">Studio rentals</p>
-        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-          {STUDIO_RENTAL_OFFERINGS.map((offering) => (
-            <OfferingCard
-              key={offering.key}
-              offering={offering}
-              selected={value === offering.key}
-              onSelect={() => onChange(offering.key)}
-            />
-          ))}
-        </div>
-      </div>
+      <OfferingSection
+        label="Studio rentals"
+        offerings={STUDIO_RENTAL_OFFERINGS}
+        value={value}
+        onChange={onChange}
+      />
+      <OfferingSection
+        label="Photography"
+        offerings={STUDIO_PHOTO_OFFERINGS}
+        value={value}
+        onChange={onChange}
+      />
+      <OfferingSection
+        label="Class"
+        offerings={STUDIO_CLASS_OFFERINGS}
+        value={value}
+        onChange={onChange}
+      />
 
-      <div>
-        <p className="label-caps text-[10px] text-muted-foreground">Photography</p>
-        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-          {STUDIO_PHOTO_OFFERINGS.map((offering) => (
-            <OfferingCard
-              key={offering.key}
-              offering={offering}
-              selected={value === offering.key}
-              onSelect={() => onChange(offering.key)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="label-caps text-[10px] text-muted-foreground">Class</p>
-        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-          {STUDIO_CLASS_OFFERINGS.map((offering) => (
-            <OfferingCard
-              key={offering.key}
-              offering={offering}
-              selected={value === offering.key}
-              onSelect={() => onChange(offering.key)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <p className="text-sm text-muted-foreground">
-        Looking for a photobooth rental?{" "}
-        <a href="/photobooth" className="underline underline-offset-4 hover:text-foreground">
-          Book the booth
-        </a>
-        .
-      </p>
+      <MotionEnter whenVisible delayMs={40}>
+        <p className="text-sm text-muted-foreground">
+          Looking for a photobooth rental?{" "}
+          <a href="/photobooth" className="underline underline-offset-4 hover:text-foreground">
+            Book the booth
+          </a>
+          .
+        </p>
+      </MotionEnter>
     </div>
   );
 }

@@ -89,13 +89,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Book Studio 7 Miami" },
+      { title: "Studio 7 Miami · Book" },
       {
         name: "description",
         content: "Book Studio 7 Miami portraits, headshots, passport photos, acting class, or a photobooth rental.",
       },
       { name: "author", content: "Studio 7 Miami" },
-      { property: "og:title", content: "Book Studio 7 Miami" },
+      { property: "og:title", content: "Studio 7 Miami · Book" },
       {
         property: "og:description",
         content: "Book Studio 7 Miami portraits, headshots, passport photos, acting class, or a photobooth rental.",
@@ -106,7 +106,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image:height", content: "409" },
       { property: "og:image:alt", content: "Studio 7 Miami" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Book Studio 7 Miami" },
+      { name: "twitter:title", content: "Studio 7 Miami · Book" },
       { name: "twitter:image", content: IMAGES.og },
     ],
     links: [

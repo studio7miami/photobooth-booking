@@ -12,6 +12,11 @@ export const BREAKDOWN_HOURS = 1;
 export const MIN_CALENDAR_HOLD_HOURS = 2;
 export const BOOKING_TIMEZONE = "America/New_York";
 
+/** Calendar date in the booking timezone, YYYY-MM-DD. */
+export function todayInBookingZone(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: BOOKING_TIMEZONE }).format(new Date());
+}
+
 /** Unpaid signatures hold the slot this long. After that the time opens again. */
 export const HOLD_MINUTES = 10;
 /** Idle or abandoned drafts reset after this long. Same clock as the unpaid hold. */

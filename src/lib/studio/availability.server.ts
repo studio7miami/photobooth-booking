@@ -1,5 +1,5 @@
 import { CONFIRMED_STATUSES } from "@/config/booking-rules";
-import { ACTING_CAPACITY, ACTING_WEEKLY, BOOKING_TIMEZONE } from "@/config/studio/booking-rules";
+import { ACTING_WEEKLY, BOOKING_TIMEZONE } from "@/config/studio/booking-rules";
 import { STUDIO_OFFERINGS, type StudioOfferingKey } from "@/config/studio/offerings";
 import {
   occupancyFromWindow,
@@ -187,43 +187,7 @@ function sessionOverlapsHold(
   });
 }
 
-async function countActingSeats(sessionId: string, excludeBookingId?: string): Promise<number> {
-  const supabase = await getAdmin();
-  const cutoff = holdCutoffIso();
-  const [{ data: confirmed }, { data: holds }] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select("id")
-      .eq("product", "studio")
-      .eq("resource", "studio_acting")
-      .eq("class_session_id", sessionId)
-      .in("status", [...CONFIRMED_STATUSES]),
-    supabase
-      .from("bookings")
-      .select("id, signed_at")
-      .eq("product", "studio")
-      .eq("resource", "studio_acting")
-      .eq("class_session_id", sessionId)
-      .eq("status", "agreement_signed")
-      .gte("signed_at", cutoff),
-  ]);
-
-  let taken = (confirmed ?? []).length;
-  for (const row of holds ?? []) {
-    const hold = row as { id: string; signed_at: string | null };
-    if (excludeBookingId && hold.id === excludeBookingId) continue;
-    if (!isHoldActive(hold.signed_at)) continue;
-    taken += 1;
-  }
-  if (excludeBookingId) {
-    taken -= (confirmed ?? []).filter(
-      (row) => String((row as { id: string }).id) === excludeBookingId,
-    ).length;
-  }
-  return taken;
-}
-
-export async function listActingSessions(args?: {
+export async function listActingSessions(_args?: {
   excludeBookingId?: string;
 }): Promise<ActingSession[]> {
   try {
@@ -250,18 +214,11 @@ export async function listActingSessions(args?: {
   const sessions: ActingSession[] = [];
   for (const slot of dates) {
     if (sessionOverlapsHold(slot.date, slot.startTime, durationMinutes, googleHolds)) continue;
-    const id = classSessionId(slot.date, slot.startTime);
-    const taken = await countActingSeats(id, args?.excludeBookingId);
-    const remaining = Math.max(0, ACTING_CAPACITY - taken);
-    if (remaining <= 0) continue;
     sessions.push({
-      id,
+      id: classSessionId(slot.date, slot.startTime),
       date: slot.date,
       startTime: slot.startTime,
       durationMinutes,
-      capacity: ACTING_CAPACITY,
-      taken,
-      remaining,
     });
   }
   return sessions;
@@ -280,5 +237,4 @@ export async function assertActingSeatAvailable(args: {
   if (!match || match.date !== args.eventDate || match.startTime !== args.eventStartTime) {
     throw new Error(CLASS_SEAT_UNAVAILABLE_MESSAGE);
   }
-  if (match.remaining <= 0) throw new Error(CLASS_SEAT_UNAVAILABLE_MESSAGE);
 }

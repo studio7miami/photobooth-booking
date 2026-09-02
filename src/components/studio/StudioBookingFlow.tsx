@@ -6,7 +6,9 @@ import { INACTIVITY_MINUTES } from "@/config/booking-rules";
 import { STUDIO_LOCATION } from "@/config/studio/booking-rules";
 import {
   calculateStudioPrice,
+  STUDIO_OFFERING_SLUG,
   STUDIO_OFFERINGS,
+  studioOfferingFromLocation,
   type StudioOfferingKey,
 } from "@/config/studio/offerings";
 import {
@@ -41,6 +43,8 @@ import { StepAgreement, CheckRow, type AgreementValues } from "@/components/book
 import { StepPayment } from "@/components/booking/StepPayment";
 import { PaymentConfirmation } from "@/components/booking/PaymentConfirmation";
 import { HoldTimer } from "@/components/booking/HoldTimer";
+import { MotionProvider, parseMotionVariant, type MotionVariant } from "@/components/booking/motion";
+import { studioPageTitle } from "@/lib/page-title";
 import { StepOffering, STUDIO_OFFERING_IMAGES } from "./StepOffering";
 import { StepStudioTime } from "./StepTime";
 import { StepStudioDetails } from "./StepDetails";
@@ -77,16 +81,35 @@ const SIGN_STEP = 4;
 const CLASS_LAST_STEP = 4;
 const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 
-export function StudioBookingFlow() {
+function seedOffering(offering: StudioOfferingKey): StudioBookingDraft {
+  return {
+    offering,
+    durationMinutes: STUDIO_OFFERINGS[offering].baseMinutes,
+  };
+}
+
+export function StudioBookingFlow({
+  initialOffering,
+}: {
+  initialOffering?: StudioOfferingKey;
+} = {}) {
   const [hydrated, setHydrated] = useState(false);
-  const [step, setStep] = useState(1);
-  const [values, setValues] = useState<StudioBookingDraft>({});
+  const [step, setStep] = useState(() => (initialOffering ? 2 : 1));
+  const [values, setValues] = useState<StudioBookingDraft>(() =>
+    initialOffering ? seedOffering(initialOffering) : {},
+  );
   const [agreement, setAgreement] = useState<AgreementValues>({});
   const [errors, setErrors] = useState<Errors>({});
   const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [signed, setSigned] = useState<StoredSigned | null>(null);
   const [paidBookingId, setPaidBookingId] = useState<string | null>(null);
+  const [motionVariant] = useState<MotionVariant>(
+    () =>
+      parseMotionVariant(
+        typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("motion"),
+      ) ?? "rise",
+  );
 
   const sign = useServerFn(finalizeStudioSignature);
   const holdClassSeat = useServerFn(createStudioClassHold);
@@ -98,6 +121,11 @@ export function StudioBookingFlow() {
   useEffect(() => {
     if (step >= (skipAgreement ? 3 : SIGN_STEP)) void getStripe();
   }, [step, skipAgreement]);
+
+  useEffect(() => {
+    const name = values.offering ? STUDIO_OFFERINGS[values.offering].name : undefined;
+    document.title = studioPageTitle(name);
+  }, [values.offering]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -116,7 +144,40 @@ export function StudioBookingFlow() {
       setHydrated(true);
       return;
     }
+    const linkedOffering =
+      initialOffering ?? studioOfferingFromLocation(window.location.pathname, params);
     const draft = loadStudioDraft();
+
+    if (linkedOffering) {
+      const sameOffering = draft?.values.offering === linkedOffering;
+      if (sameOffering && draft) {
+        const v = { ...draft.values };
+        if (v.offering && !STUDIO_OFFERINGS[v.offering]) {
+          delete v.offering;
+        }
+        setValues(v);
+        const resumeSkipsAgreement = skipsStudioAgreement(v.offering);
+        if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
+          setSigned(draft.signed);
+          setStep(resumeSkipsAgreement ? CLASS_LAST_STEP : LAST_STEP);
+        } else {
+          const cap = resumeSkipsAgreement ? 3 : SIGN_STEP;
+          setStep(Math.min(Math.max(draft.step, 2), cap));
+        }
+        const held = Boolean(draft.signed?.booking_id && isHoldActive(draft.signed.signed_at));
+        setResumed(held || draft.step > 2);
+      } else {
+        if (draft?.signed?.booking_id) {
+          void releaseUnsignedHold({ data: { bookingId: draft.signed.booking_id } });
+        }
+        if (draft) clearStudioDraft();
+        setValues(seedOffering(linkedOffering));
+        setStep(2);
+      }
+      setHydrated(true);
+      return;
+    }
+
     if (draft) {
       const v = { ...draft.values };
       if (v.offering && !STUDIO_OFFERINGS[v.offering]) {
@@ -124,16 +185,21 @@ export function StudioBookingFlow() {
       }
       setValues(v);
       const resumeSkipsAgreement = skipsStudioAgreement(v.offering);
-      if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
+      const held = Boolean(draft.signed?.booking_id && isHoldActive(draft.signed.signed_at));
+      if (held) {
         setSigned(draft.signed);
         setStep(resumeSkipsAgreement ? CLASS_LAST_STEP : LAST_STEP);
+        setResumed(true);
+      } else if (!initialOffering) {
+        // `/` is the catalog. Don't jump into a prior offering (or rewrite to its slug).
+        setStep(1);
       } else {
-        setStep(Math.min(Math.max(draft.step, 1), resumeSkipsAgreement ? 3 : SIGN_STEP));
+        setStep(Math.min(Math.max(draft.step, 2), resumeSkipsAgreement ? 3 : SIGN_STEP));
+        setResumed(true);
       }
-      setResumed(true);
     }
     setHydrated(true);
-  }, []);
+  }, [initialOffering, releaseUnsignedHold]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -148,12 +214,33 @@ export function StudioBookingFlow() {
     }
   }, [resumed]);
 
+  useEffect(() => {
+    if (!hydrated || paidBookingId || !values.offering || step < 2) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("booking")) return;
+    const slug = STUDIO_OFFERING_SLUG[values.offering];
+    url.searchParams.delete("offering");
+    url.searchParams.delete("session");
+    const next = `/${slug}${url.search}${url.hash}`;
+    if (`${url.pathname}${url.search}${url.hash}` === next) return;
+    window.history.replaceState(window.history.state, "", next);
+  }, [hydrated, paidBookingId, values.offering, step]);
+
   const startOver = useCallback(
     (reason: "idle" | "hold") => {
       const holdId = signed?.booking_id;
+      const linkedOffering = studioOfferingFromLocation(
+        window.location.pathname,
+        window.location.search,
+      );
       clearStudioDraft();
-      setStep(1);
-      setValues({});
+      if (linkedOffering) {
+        setStep(2);
+        setValues(seedOffering(linkedOffering));
+      } else {
+        setStep(1);
+        setValues({});
+      }
       setAgreement({});
       setErrors({});
       setSigned(null);
@@ -351,11 +438,7 @@ export function StudioBookingFlow() {
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      toast(
-        message.includes("available") || message.includes("full")
-          ? message
-          : "We couldn't record your signature. Please try again.",
-      );
+      toast(message.trim() || "We couldn't record your signature. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -487,6 +570,7 @@ export function StudioBookingFlow() {
   const offeringImage = values.offering ? STUDIO_OFFERING_IMAGES[values.offering] : null;
 
   return (
+    <MotionProvider variant={motionVariant} replayKey={step}>
     <StepShell
       step={step}
       title={copy.title}
@@ -508,7 +592,7 @@ export function StudioBookingFlow() {
                 alt={offeringImage.alt}
                 className={
                   offeringImage.contain
-                    ? "block w-full bg-background object-contain p-10"
+                    ? "block aspect-square w-full bg-background object-contain p-16"
                     : "block w-full"
                 }
               />
@@ -619,5 +703,6 @@ export function StudioBookingFlow() {
         )
       ) : null}
     </StepShell>
+    </MotionProvider>
   );
 }

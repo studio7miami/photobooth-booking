@@ -56,7 +56,7 @@ export type StudioOffering = {
 export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
   framehaus: {
     key: "framehaus",
-    name: "Digitals + Comp Cards w/ Framehaus Media",
+    name: "Digitals + Comp Cards",
     tagline: "Digitals & comp cards, shot as you are.",
     description:
       "For models targeting agencies and casting calls that want to see you as you are. Shot in a studio, this session delivers the industry-standard photos and walk footage that agencies, show curators, and casting directors need — clean, unfiltered, and ready to submit.",
@@ -69,6 +69,7 @@ export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
     additionalSlotCents: 0,
     allowsExtraTime: true,
     depositEligible: false,
+    assignsShooter: true,
     inclusions: [
       "90-minute studio session",
       "Industry-standard digitals",
@@ -114,6 +115,7 @@ export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
     additionalSlotCents: 0,
     allowsExtraTime: true,
     depositEligible: true,
+    assignsShooter: true,
     inclusions: ["90-minute session", "Two polished looks", "Beauty lighting", "Edited gallery"],
   },
   theatrical: {
@@ -131,6 +133,7 @@ export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
     additionalSlotCents: 0,
     allowsExtraTime: true,
     depositEligible: false,
+    assignsShooter: true,
     inclusions: [
       "90-minute session",
       "Two styled looks",
@@ -153,6 +156,7 @@ export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
     additionalSlotCents: 0,
     allowsExtraTime: true,
     depositEligible: false,
+    assignsShooter: true,
     inclusions: [
       "30-minute session",
       "White-backdrop headshots",
@@ -175,6 +179,7 @@ export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
     additionalSlotCents: 0,
     allowsExtraTime: false,
     depositEligible: false,
+    assignsShooter: true,
     inclusions: [
       "15-minute session",
       "Passport and visa compliant crop",
@@ -197,6 +202,7 @@ export const STUDIO_OFFERINGS: Record<StudioOfferingKey, StudioOffering> = {
     additionalSlotCents: 0,
     allowsExtraTime: true,
     depositEligible: false,
+    assignsShooter: true,
     inclusions: [
       "2-hour studio session",
       "Athlete and team portraits",
@@ -312,6 +318,84 @@ export const STUDIO_STRIPE_LOOKUP_KEY: Record<StudioOfferingKey, string> = {
 
 export function isStudioOfferingKey(value: string | null | undefined): value is StudioOfferingKey {
   return Boolean(value && value in STUDIO_OFFERINGS);
+}
+
+/** Canonical slug used in marketing / Framer book links (`/digitals`). */
+export const STUDIO_OFFERING_SLUG: Record<StudioOfferingKey, string> = {
+  framehaus: "digitals",
+  portraits: "portraits",
+  beauty: "beauty-headshots",
+  theatrical: "theatrical-headshots",
+  headshot: "standard-headshots",
+  passport: "passport-photos",
+  sports_media: "sports-media",
+  photo_studio: "photo-studio",
+  full_studio: "full-studio",
+  acting_cj: "acting",
+};
+
+const STUDIO_OFFERING_ALIASES: Record<string, StudioOfferingKey> = {
+  digitals: "framehaus",
+  "digitals-comp-cards": "framehaus",
+  "comp-cards": "framehaus",
+  framehaus: "framehaus",
+  portraits: "portraits",
+  beauty: "beauty",
+  "beauty-headshots": "beauty",
+  theatrical: "theatrical",
+  "theatrical-headshots": "theatrical",
+  headshot: "headshot",
+  headshots: "headshot",
+  "standard-headshots": "headshot",
+  passport: "passport",
+  "passport-photos": "passport",
+  sports: "sports_media",
+  "sports-media": "sports_media",
+  sports_media: "sports_media",
+  "photo-studio": "photo_studio",
+  photo_studio: "photo_studio",
+  "full-studio": "full_studio",
+  full_studio: "full_studio",
+  acting: "acting_cj",
+  "acting-class": "acting_cj",
+  acting_cj: "acting_cj",
+};
+
+function normalizeOfferingSlug(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[+&]/g, " ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Resolve `?offering=` / `?session=` from older book links. */
+export function parseStudioOfferingParam(raw: string | null | undefined): StudioOfferingKey | null {
+  if (!raw) return null;
+  const slug = normalizeOfferingSlug(raw);
+  if (!slug) return null;
+  if (STUDIO_OFFERING_ALIASES[slug]) return STUDIO_OFFERING_ALIASES[slug];
+  if (isStudioOfferingKey(slug)) return slug;
+  return null;
+}
+
+export function studioOfferingFromSearch(search: string | URLSearchParams): StudioOfferingKey | null {
+  const params = typeof search === "string" ? new URLSearchParams(search) : search;
+  return parseStudioOfferingParam(params.get("offering") ?? params.get("session"));
+}
+
+export function studioOfferingFromPath(pathname: string): StudioOfferingKey | null {
+  const segment = pathname.split("/").filter(Boolean)[0];
+  if (!segment) return null;
+  return parseStudioOfferingParam(segment);
+}
+
+export function studioOfferingFromLocation(
+  pathname: string,
+  search: string | URLSearchParams,
+): StudioOfferingKey | null {
+  return studioOfferingFromPath(pathname) ?? studioOfferingFromSearch(search);
 }
 
 export type StudioPriceInput = {

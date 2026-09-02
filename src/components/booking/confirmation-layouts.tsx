@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { Check, Loader2 } from "lucide-react";
 
 import { IMAGES } from "@/assets/images";
-import { formatCents } from "@/config/pricing";
+import { formatCents, formatPaidTotal } from "@/config/pricing";
 import { offeringImageFocusClass } from "@/components/studio/StepOffering";
 import { formatAddressLines, formatEmail, formatName, formatPhone } from "@/lib/format-display";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export type ConfirmationModel = {
   eventDate?: string | undefined;
   eventStartTime?: string | undefined;
   totalCents: number;
+  paidCents?: number;
   paidOn: string | null;
   isDeposit: boolean;
   balanceCents: number | null;
@@ -36,13 +37,14 @@ export type ConfirmationModel = {
   kind?: "photobooth" | "studio" | "class";
 };
 
-function Logo() {
+function Logo({ kind }: { kind?: ConfirmationModel["kind"] }) {
+  const photobooth = kind === "photobooth";
   return (
     <div className="relative mb-3 h-12 sm:mb-4 sm:h-14">
       <img
-        src={IMAGES.logo}
-        alt="Studio 7 Miami"
-        className="absolute bottom-0 left-1/2 h-16 w-auto -translate-x-1/2 object-contain sm:h-[4.5rem]"
+        src={photobooth ? IMAGES.photoboothLogo : IMAGES.logo}
+        alt={photobooth ? "Studio 7 Photobooth" : "Studio 7 Miami"}
+        className="absolute bottom-0 left-1/2 h-16 w-auto -translate-x-1/2 bg-transparent object-contain sm:h-[4.5rem]"
       />
     </div>
   );
@@ -97,6 +99,11 @@ function PackageRow({ model }: { model: ConfirmationModel }) {
         {...(model.experienceName ? { experienceName: model.experienceName } : {})}
         {...(model.imageUrl ? { imageUrl: model.imageUrl } : {})}
         totalCents={model.totalCents}
+        amountLabel={formatPaidTotal({
+          isDeposit: model.isDeposit,
+          paidCents: model.paidCents ?? model.totalCents - (model.balanceCents ?? 0),
+          balanceCents: model.balanceCents,
+        })}
         done={model.settled}
       />
     </div>
@@ -146,14 +153,14 @@ function BalanceBlock({ model }: { model: ConfirmationModel }) {
   if (!model.settled || !model.isDeposit || !model.balanceCents) return null;
   return (
     <div className="mt-1">
-      <div className="ed-hairline flex items-baseline justify-between gap-4 py-2">
-        <span className="label-caps text-[10px] text-muted-foreground">Balance remaining</span>
-        <span className="text-right">
-          <span className="font-display text-sm tabular-nums">
-            {formatCents(model.balanceCents)}
-          </span>
+      <div className="ed-hairline flex items-baseline justify-between gap-2 py-2">
+        <span className="label-caps shrink-0 text-[9px] text-muted-foreground sm:text-[10px]">
+          Balance remaining
+        </span>
+        <span className="whitespace-nowrap text-right text-[11px] sm:text-sm">
+          <span className="font-display tabular-nums">{formatCents(model.balanceCents)}</span>
           {model.dueLabel ? (
-            <span className="mt-0.5 block text-xs text-muted-foreground">Due {model.dueLabel}</span>
+            <span className="ml-1.5 text-muted-foreground">due {model.dueLabel}</span>
           ) : null}
         </span>
       </div>
@@ -165,7 +172,7 @@ function BalanceBlock({ model }: { model: ConfirmationModel }) {
 export function ConfirmationReceipt({ model }: { model: ConfirmationModel }) {
   return (
     <div className="w-full max-w-lg">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="p-5 sm:p-6">
         <Header model={model} />
         <PackageRow model={model} />
@@ -180,7 +187,7 @@ export function ConfirmationReceipt({ model }: { model: ConfirmationModel }) {
 export function ConfirmationGrouped({ model }: { model: ConfirmationModel }) {
   return (
     <div className="w-full max-w-xl">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="p-5 sm:p-6">
         <Header model={model} />
         <PackageRow model={model} />
@@ -282,7 +289,7 @@ function DetailsStack({ model, paid = false }: { model: ConfirmationModel; paid?
 export function ConfirmationGroupedPanels({ model }: { model: ConfirmationModel }) {
   return (
     <div className="w-full max-w-xl">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="p-5 sm:p-6">
         <Header model={model} />
         <PackageRow model={model} />
@@ -304,7 +311,7 @@ export function ConfirmationGroupedPanels({ model }: { model: ConfirmationModel 
 export function ConfirmationGroupedDisplay({ model }: { model: ConfirmationModel }) {
   return (
     <div className="w-full max-w-xl">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="p-5 sm:p-6">
         <Header model={model} />
         <PackageRow model={model} />
@@ -325,7 +332,7 @@ export function ConfirmationGroupedDisplay({ model }: { model: ConfirmationModel
 export function ConfirmationGroupedRule({ model }: { model: ConfirmationModel }) {
   return (
     <div className="w-full max-w-xl">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="p-5 sm:p-6">
         <Header model={model} />
         <PackageRow model={model} />
@@ -353,7 +360,7 @@ export function ConfirmationTicket({ model }: { model: ConfirmationModel }) {
 
   return (
     <div className="w-full max-w-3xl">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="overflow-hidden p-0">
         <div className="grid sm:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div className="p-5 sm:p-6">
@@ -419,7 +426,7 @@ export function ConfirmationNarrative({ model }: { model: ConfirmationModel }) {
   const time = clock(model);
   return (
     <div className="w-full max-w-lg">
-      <Logo />
+      <Logo kind={model.kind} />
       <EdCard className="p-5 sm:p-6">
         <Header model={model} />
         <PackageRow model={model} />

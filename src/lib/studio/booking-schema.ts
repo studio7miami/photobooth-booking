@@ -5,6 +5,7 @@ import {
   type StudioOfferingKey,
 } from "@/config/studio/offerings";
 import { STUDIO_LOCATION } from "@/config/studio/booking-rules";
+import { todayInBookingZone } from "@/config/booking-rules";
 
 export const studioOfferingSchema = z.object({
   offering: z.enum(STUDIO_OFFERING_KEYS),
@@ -15,8 +16,8 @@ export const studioTimeSchema = z
     eventDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Choose your date" })
-      .refine((d) => d > new Date().toISOString().slice(0, 10), {
-        message: "Pick a future date",
+      .refine((d) => d >= todayInBookingZone(), {
+        message: "Pick a date that's still open",
       }),
     eventStartTime: z.string().regex(/^\d{2}:\d{2}$/, { message: "Choose a start time" }),
     durationMinutes: z.number().int().min(15).max(540),

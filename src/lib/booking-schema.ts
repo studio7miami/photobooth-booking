@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EVENT_TYPES, EXPERIENCE_KEYS } from "@/config/pricing";
+import { todayInBookingZone } from "@/config/booking-rules";
 
 const eventTypeValues = EVENT_TYPES.map((t) => t.value) as [string, ...string[]];
 
@@ -12,8 +13,8 @@ export const stepTimeSchema = z
     eventDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Choose your event date" })
-      .refine((d) => d > new Date().toISOString().slice(0, 10), {
-        message: "Pick a future date",
+      .refine((d) => d >= todayInBookingZone(), {
+        message: "Pick a date that's still open",
       }),
     eventStartTime: z.string().regex(/^\d{2}:\d{2}$/, { message: "Choose a start time" }),
     durationHours: z.number().int().min(1).max(24),

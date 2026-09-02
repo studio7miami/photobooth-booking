@@ -10,16 +10,27 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OfferingRouteImport } from './routes/$offering'
 import { Route as BookedPreviewRouteImport } from './routes/booked-preview'
 import { Route as CheckoutPreviewRouteImport } from './routes/checkout-preview'
+import { Route as EmailPreviewRouteImport } from './routes/email-preview'
 import { Route as LayoutPreviewRouteImport } from './routes/layout-preview'
+import { Route as MotionPreviewRouteImport } from './routes/motion-preview'
+import { Route as PayPreviewRouteImport } from './routes/pay-preview'
+import { Route as PayBookingIdRouteImport } from './routes/pay/$bookingId'
 import { Route as PhotoboothIndexRouteImport } from './routes/photobooth/index'
+import { Route as ApiCronBalanceRemindersRouteImport } from './routes/api/cron/balance-reminders'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as PhotoboothApiPublicPaymentsWebhookRouteImport } from './routes/photobooth/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfferingRoute = OfferingRouteImport.update({
+  id: '/$offering',
+  path: '/$offering',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookedPreviewRoute = BookedPreviewRouteImport.update({
@@ -32,14 +43,39 @@ const CheckoutPreviewRoute = CheckoutPreviewRouteImport.update({
   path: '/checkout-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmailPreviewRoute = EmailPreviewRouteImport.update({
+  id: '/email-preview',
+  path: '/email-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LayoutPreviewRoute = LayoutPreviewRouteImport.update({
   id: '/layout-preview',
   path: '/layout-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MotionPreviewRoute = MotionPreviewRouteImport.update({
+  id: '/motion-preview',
+  path: '/motion-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayPreviewRoute = PayPreviewRouteImport.update({
+  id: '/pay-preview',
+  path: '/pay-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayBookingIdRoute = PayBookingIdRouteImport.update({
+  id: '/pay/$bookingId',
+  path: '/pay/$bookingId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PhotoboothIndexRoute = PhotoboothIndexRouteImport.update({
   id: '/photobooth/',
   path: '/photobooth/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronBalanceRemindersRoute = ApiCronBalanceRemindersRouteImport.update({
+  id: '/api/cron/balance-reminders',
+  path: '/api/cron/balance-reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPaymentsWebhookRoute =
@@ -57,29 +93,47 @@ const PhotoboothApiPublicPaymentsWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$offering': typeof OfferingRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/email-preview': typeof EmailPreviewRoute
   '/layout-preview': typeof LayoutPreviewRoute
+  '/motion-preview': typeof MotionPreviewRoute
+  '/pay-preview': typeof PayPreviewRoute
+  '/pay/$bookingId': typeof PayBookingIdRoute
   '/photobooth/': typeof PhotoboothIndexRoute
+  '/api/cron/balance-reminders': typeof ApiCronBalanceRemindersRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$offering': typeof OfferingRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/email-preview': typeof EmailPreviewRoute
   '/layout-preview': typeof LayoutPreviewRoute
+  '/motion-preview': typeof MotionPreviewRoute
+  '/pay-preview': typeof PayPreviewRoute
+  '/pay/$bookingId': typeof PayBookingIdRoute
   '/photobooth': typeof PhotoboothIndexRoute
+  '/api/cron/balance-reminders': typeof ApiCronBalanceRemindersRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$offering': typeof OfferingRoute
   '/booked-preview': typeof BookedPreviewRoute
   '/checkout-preview': typeof CheckoutPreviewRoute
+  '/email-preview': typeof EmailPreviewRoute
   '/layout-preview': typeof LayoutPreviewRoute
+  '/motion-preview': typeof MotionPreviewRoute
+  '/pay-preview': typeof PayPreviewRoute
+  '/pay/$bookingId': typeof PayBookingIdRoute
   '/photobooth/': typeof PhotoboothIndexRoute
+  '/api/cron/balance-reminders': typeof ApiCronBalanceRemindersRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/photobooth/api/public/payments/webhook': typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
@@ -87,38 +141,62 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$offering'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/email-preview'
     | '/layout-preview'
+    | '/motion-preview'
+    | '/pay-preview'
+    | '/pay/$bookingId'
     | '/photobooth/'
+    | '/api/cron/balance-reminders'
     | '/api/public/payments/webhook'
     | '/photobooth/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$offering'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/email-preview'
     | '/layout-preview'
+    | '/motion-preview'
+    | '/pay-preview'
+    | '/pay/$bookingId'
     | '/photobooth'
+    | '/api/cron/balance-reminders'
     | '/api/public/payments/webhook'
     | '/photobooth/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
+    | '/$offering'
     | '/booked-preview'
     | '/checkout-preview'
+    | '/email-preview'
     | '/layout-preview'
+    | '/motion-preview'
+    | '/pay-preview'
+    | '/pay/$bookingId'
     | '/photobooth/'
+    | '/api/cron/balance-reminders'
     | '/api/public/payments/webhook'
     | '/photobooth/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OfferingRoute: typeof OfferingRoute
   BookedPreviewRoute: typeof BookedPreviewRoute
   CheckoutPreviewRoute: typeof CheckoutPreviewRoute
+  EmailPreviewRoute: typeof EmailPreviewRoute
   LayoutPreviewRoute: typeof LayoutPreviewRoute
+  MotionPreviewRoute: typeof MotionPreviewRoute
+  PayPreviewRoute: typeof PayPreviewRoute
+  PayBookingIdRoute: typeof PayBookingIdRoute
   PhotoboothIndexRoute: typeof PhotoboothIndexRoute
+  ApiCronBalanceRemindersRoute: typeof ApiCronBalanceRemindersRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   PhotoboothApiPublicPaymentsWebhookRoute: typeof PhotoboothApiPublicPaymentsWebhookRoute
 }
@@ -130,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$offering': {
+      id: '/$offering'
+      path: '/$offering'
+      fullPath: '/$offering'
+      preLoaderRoute: typeof OfferingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/booked-preview': {
@@ -146,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/email-preview': {
+      id: '/email-preview'
+      path: '/email-preview'
+      fullPath: '/email-preview'
+      preLoaderRoute: typeof EmailPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/layout-preview': {
       id: '/layout-preview'
       path: '/layout-preview'
@@ -153,11 +245,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/motion-preview': {
+      id: '/motion-preview'
+      path: '/motion-preview'
+      fullPath: '/motion-preview'
+      preLoaderRoute: typeof MotionPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pay-preview': {
+      id: '/pay-preview'
+      path: '/pay-preview'
+      fullPath: '/pay-preview'
+      preLoaderRoute: typeof PayPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pay/$bookingId': {
+      id: '/pay/$bookingId'
+      path: '/pay/$bookingId'
+      fullPath: '/pay/$bookingId'
+      preLoaderRoute: typeof PayBookingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/photobooth/': {
       id: '/photobooth/'
       path: '/photobooth'
       fullPath: '/photobooth/'
       preLoaderRoute: typeof PhotoboothIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/balance-reminders': {
+      id: '/api/cron/balance-reminders'
+      path: '/api/cron/balance-reminders'
+      fullPath: '/api/cron/balance-reminders'
+      preLoaderRoute: typeof ApiCronBalanceRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/payments/webhook': {
@@ -179,10 +299,16 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OfferingRoute: OfferingRoute,
   BookedPreviewRoute: BookedPreviewRoute,
   CheckoutPreviewRoute: CheckoutPreviewRoute,
+  EmailPreviewRoute: EmailPreviewRoute,
   LayoutPreviewRoute: LayoutPreviewRoute,
+  MotionPreviewRoute: MotionPreviewRoute,
+  PayPreviewRoute: PayPreviewRoute,
+  PayBookingIdRoute: PayBookingIdRoute,
   PhotoboothIndexRoute: PhotoboothIndexRoute,
+  ApiCronBalanceRemindersRoute: ApiCronBalanceRemindersRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   PhotoboothApiPublicPaymentsWebhookRoute:
     PhotoboothApiPublicPaymentsWebhookRoute,

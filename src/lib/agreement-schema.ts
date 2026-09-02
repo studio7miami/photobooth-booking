@@ -8,8 +8,8 @@ export const finalizeSignatureSchema = z.object({
   /** PNG data URL of the drawn signature. */
   signatureValue: z
     .string()
-    .startsWith("data:image/png;base64,", { message: "Draw your signature" })
-    .max(500_000),
+    .regex(/^data:image\/(png|jpeg);base64,/, { message: "Draw your signature" })
+    .max(2_000_000),
   consent: z.literal(true, { message: "You must agree before signing" }),
   marketingOptIn: z.boolean(),
 });

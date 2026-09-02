@@ -380,7 +380,7 @@ function ActingSessionPicker({
       <div className="rounded-[24px] border border-border soft-card p-5 sm:p-6">
         <p className="label-caps text-[10px] text-muted-foreground">Upcoming classes</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Pick a published session with CJ. Seats are limited.
+          Pick a published session with CJ.
         </p>
         <div className="mt-4 space-y-2">
           {loading && sessions.length === 0 ? (
@@ -422,9 +422,6 @@ function ActingSessionPicker({
                   >
                     {formatTime(session.startTime)} · 2 hours
                   </span>
-                </span>
-                <span className="label-caps shrink-0 text-[10px]">
-                  {session.remaining} of {session.capacity} left
                 </span>
               </button>
             );

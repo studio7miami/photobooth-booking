@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
 import { INACTIVITY_MINUTES } from "@/config/booking-rules";
-import { EXPERIENCES, calculatePrice, type ExperienceKey } from "@/config/pricing";
+import { EXPERIENCES, calculatePrice, PHOTOBOOTH_EXPERIENCE_SLUG, type ExperienceKey } from "@/config/pricing";
 import {
   bookingDetailsSchema,
   stepDetailsSchema,
@@ -24,7 +24,10 @@ import {
 } from "@/lib/booking-draft";
 import { isHoldActive } from "@/lib/hold";
 import { getStripe } from "@/lib/stripe";
+import { IMAGES } from "@/assets/images";
+import { photoboothPageTitle } from "@/lib/page-title";
 import { StepShell } from "./StepShell";
+import { MotionEnter } from "./motion";
 import { EXPERIENCE_IMAGES, StepExperience } from "./StepExperience";
 import { StepTime } from "./StepTime";
 import { StepDetails } from "./StepDetails";
@@ -66,10 +69,24 @@ const LAST_STEP = 5;
 const SIGN_STEP = 4;
 const INACTIVITY_MS = INACTIVITY_MINUTES * 60 * 1000;
 
-export function BookingFlow() {
+function seedExperience(experience: ExperienceKey): BookingDraft {
+  return {
+    experience,
+    durationHours: EXPERIENCES[experience].baseHours,
+    stationCount: EXPERIENCES[experience].perStation ? 1 : null,
+  };
+}
+
+export function BookingFlow({
+  initialExperience,
+}: {
+  initialExperience?: ExperienceKey;
+} = {}) {
   const [hydrated, setHydrated] = useState(false);
-  const [step, setStep] = useState(1);
-  const [values, setValues] = useState<BookingDraft>({});
+  const [step, setStep] = useState(() => (initialExperience ? 2 : 1));
+  const [values, setValues] = useState<BookingDraft>(() =>
+    initialExperience ? seedExperience(initialExperience) : {},
+  );
   const [agreement, setAgreement] = useState<AgreementValues>({});
   const [errors, setErrors] = useState<Errors>({});
   const [resumed, setResumed] = useState(false);
@@ -84,6 +101,11 @@ export function BookingFlow() {
   useEffect(() => {
     if (step >= SIGN_STEP) void getStripe();
   }, [step]);
+
+  useEffect(() => {
+    const name = values.experience ? EXPERIENCES[values.experience].name : undefined;
+    document.title = photoboothPageTitle(name);
+  }, [values.experience]);
 
   // Resume an autosaved draft (client-only).
   useEffect(() => {
@@ -104,6 +126,34 @@ export function BookingFlow() {
       return;
     }
     const draft = loadDraft();
+    const linked = initialExperience;
+
+    if (linked) {
+      const same = draft?.values.experience === linked;
+      if (same && draft) {
+        const v = { ...draft.values };
+        if (v.experience && !EXPERIENCES[v.experience]) delete v.experience;
+        setValues(v);
+        if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
+          setSigned(draft.signed);
+          setStep(5);
+        } else {
+          setStep(Math.min(Math.max(draft.step, 2), SIGN_STEP));
+        }
+        const held = Boolean(draft.signed?.booking_id && isHoldActive(draft.signed.signed_at));
+        setResumed(held || draft.step > 2);
+      } else {
+        if (draft?.signed?.booking_id) {
+          void releaseUnsignedHold({ data: { bookingId: draft.signed.booking_id } });
+        }
+        if (draft) clearDraft();
+        setValues(seedExperience(linked));
+        setStep(2);
+      }
+      setHydrated(true);
+      return;
+    }
+
     if (draft) {
       const v = { ...draft.values };
       if (v.experience && !EXPERIENCES[v.experience]) {
@@ -113,13 +163,13 @@ export function BookingFlow() {
       if (draft.signed?.booking_id && isHoldActive(draft.signed.signed_at)) {
         setSigned(draft.signed);
         setStep(5);
+        setResumed(true);
       } else {
-        setStep(Math.min(Math.max(draft.step, 1), SIGN_STEP));
+        setStep(1);
       }
-      setResumed(true);
     }
     setHydrated(true);
-  }, []);
+  }, [initialExperience, releaseUnsignedHold]);
 
   // Autosave on every change once hydrated.
   useEffect(() => {
@@ -127,6 +177,16 @@ export function BookingFlow() {
     if (Object.keys(values).length === 0) return;
     saveDraft(step, values, { signed });
   }, [hydrated, step, values, signed]);
+
+  useEffect(() => {
+    if (!hydrated || paidBookingId || !values.experience) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("booking")) return;
+    const slug = PHOTOBOOTH_EXPERIENCE_SLUG[values.experience];
+    const next = `/${slug}${url.search}${url.hash}`;
+    if (`${url.pathname}${url.search}${url.hash}` === next) return;
+    window.history.replaceState(window.history.state, "", next);
+  }, [hydrated, paidBookingId, values.experience]);
 
   useEffect(() => {
     if (resumed) {
@@ -145,6 +205,7 @@ export function BookingFlow() {
       setErrors({});
       setSigned(null);
       setSubmitting(false);
+      window.history.replaceState(window.history.state, "", "/photobooth");
       if (holdId) void releaseUnsignedHold({ data: { bookingId: holdId } });
       toast(
         reason === "idle"
@@ -266,11 +327,7 @@ export function BookingFlow() {
       toast("Agreement signed. Payment unlocks next.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
-      toast(
-        message.includes("available")
-          ? message
-          : "We couldn't record your signature. Please try again.",
-      );
+      toast(message.trim() || "We couldn't record your signature. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -382,6 +439,8 @@ export function BookingFlow() {
       step={step}
       title={copy.title}
       supporting={copy.supporting}
+      logoSrc={IMAGES.photoboothLogo}
+      logoAlt="Studio 7 Photobooth"
       {...(step > 1
         ? {
             onBack: () => {
@@ -407,13 +466,15 @@ export function BookingFlow() {
               })
             }
           />
-          <p className="text-sm text-muted-foreground">
-            Looking for portraits or a studio session?{" "}
-            <a href="/" className="underline underline-offset-4 hover:text-foreground">
-              Book the studio
-            </a>
-            .
-          </p>
+          <MotionEnter whenVisible delayMs={40}>
+            <p className="text-sm text-muted-foreground">
+              Looking for portraits or a studio session?{" "}
+              <a href="/" className="underline underline-offset-4 hover:text-foreground">
+                Book the studio
+              </a>
+              .
+            </p>
+          </MotionEnter>
         </div>
       ) : null}
 

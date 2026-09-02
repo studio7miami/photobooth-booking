@@ -283,7 +283,7 @@ function packageLabel(experience: string | null): string {
   if (experience === "social") return "The Miami Social";
   if (experience === "luxe") return "The Miami Luxe";
   if (experience === "classic") return "The Miami Classic";
-  if (experience === "framehaus") return "Digitals + Comp Cards w/ Framehaus Media";
+  if (experience === "framehaus") return "Digitals + Comp Cards";
   if (experience === "portraits") return "Portraits";
   if (experience === "sports_media") return "Sports Media";
   if (experience === "beauty") return "Beauty Headshots";

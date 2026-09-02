@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { EXPERIENCE_LIST, formatCents, type ExperienceKey } from "@/config/pricing";
+import { MotionEnter } from "@/components/booking/motion";
 import { cn } from "@/lib/utils";
 import { IMAGES } from "@/assets/images";
 
@@ -32,7 +33,7 @@ export function StepExperience({
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
-      {EXPERIENCE_LIST.map((exp) => {
+      {EXPERIENCE_LIST.map((exp, index) => {
         const selected = value === exp.key;
         const image = EXPERIENCE_IMAGES[exp.key];
         const meta = `[${exp.guests.toUpperCase()}] · ${exp.baseHours} HOURS · +${formatCents(
@@ -40,14 +41,14 @@ export function StepExperience({
         )}/HR`;
 
         return (
+          <MotionEnter key={exp.key} whenVisible delayMs={70 + index * 90} className="h-full min-w-0">
           <button
-            key={exp.key}
             type="button"
             onClick={() => onChange(exp.key)}
             aria-pressed={selected}
             className={cn(
-              "ed-card flex h-full min-w-0 w-full flex-col p-4 text-left transition-colors sm:p-5",
-              selected ? "border-foreground" : "hover:border-foreground/40",
+              "ed-card ed-card-hover flex h-full min-w-0 w-full flex-col p-4 text-left sm:p-5",
+              selected ? "border-foreground" : "hover:border-[oklch(0.52_0.04_70/0.28)]",
             )}
           >
             <div className="flex min-h-[52px] items-start gap-3">
@@ -102,6 +103,7 @@ export function StepExperience({
               {selected ? "[ Selected ]" : "[ Select ]"}
             </span>
           </button>
+          </MotionEnter>
         );
       })}
     </div>

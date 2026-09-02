@@ -5,13 +5,13 @@ import { BookingFlow } from "@/components/booking/BookingFlow";
 export const Route = createFileRoute("/photobooth/")({
   head: () => ({
     meta: [
-      { title: "Book Your Photobooth" },
+      { title: "Studio 7 Photobooth · Book" },
       {
         name: "description",
         content:
           "Book Studio 7 Miami's photo booth in minutes. Choose your experience, pick your date, sign, and secure it with a deposit.",
       },
-      { property: "og:title", content: "Book Your Photobooth" },
+      { property: "og:title", content: "Studio 7 Photobooth · Book" },
       {
         property: "og:description",
         content:
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/photobooth/")({
       { property: "og:image:height", content: "409" },
       { property: "og:image:alt", content: "Studio 7 Miami photobooth" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Book Your Photobooth" },
+      { name: "twitter:title", content: "Studio 7 Photobooth · Book" },
       { name: "twitter:image", content: IMAGES.ogPhotobooth },
     ],
   }),

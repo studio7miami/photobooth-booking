@@ -2,6 +2,7 @@ import { publicUrl } from "@/lib/public-base";
 
 export const IMAGES = {
   logo: publicUrl("/images/studio7-logo.png"),
+  photoboothLogo: publicUrl("/images/studio7-photobooth-logo.png"),
   classic: publicUrl("/images/exp-classic-new.png"),
   social: publicUrl("/images/exp-social-new.jpg"),
   luxe: publicUrl("/images/exp-luxe-new.jpg"),
@@ -15,7 +16,7 @@ export const IMAGES = {
 export const STUDIO_IMAGES = {
   full_studio: publicUrl("/images/offerings/full-studio-rental.jpg"),
   photo_studio: publicUrl("/images/offerings/photo-studio-rental.jpg"),
-  framehaus: publicUrl("/images/offerings/framehaus-media.jpg"),
+  framehaus: IMAGES.logo,
   portraits: publicUrl("/images/offerings/portraits.jpg"),
   sports_media: publicUrl("/images/offerings/sports-media.jpg"),
   beauty: publicUrl("/images/offerings/beauty-headshots.jpg"),

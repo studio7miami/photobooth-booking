@@ -26,9 +26,13 @@ function formatLongDate(date: string) {
 export type CheckoutPaymentMode = "deposit" | "full" | "balance";
 
 export function returnUrlFor(bookingId: string): string {
-  const onPhotobooth = window.location.pathname.includes("/photobooth");
-  const path = onPhotobooth ? "/photobooth" : "/";
-  return `${window.location.origin}${path}?booking=${bookingId}&paid=1`;
+  const path = window.location.pathname;
+  if (path.startsWith("/pay/")) {
+    return `${window.location.origin}/pay/${bookingId}?paid=1`;
+  }
+  const onPhotobooth = path.includes("/photobooth");
+  const home = onPhotobooth ? "/photobooth" : "/";
+  return `${window.location.origin}${home}?booking=${bookingId}&paid=1`;
 }
 
 const PAY_SHEET_APPEARANCE = {

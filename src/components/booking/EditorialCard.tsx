@@ -61,7 +61,7 @@ export function EdSpec({
       <dt className="label-caps text-[10px] text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "text-right tabular-nums",
+          "text-right tabular-nums whitespace-nowrap",
           strong ? "font-display text-base" : "text-sm",
         )}
       >

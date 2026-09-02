@@ -17,8 +17,6 @@ export const PHOTO_TIME_SLOTS: string[] = Array.from({ length: 36 }, (_, i) => {
   return `${h}:${m}`;
 });
 
-export const ACTING_CAPACITY = 8;
-
 /**
  * Recurring group class windows. `weekday` is JS getDay() in Eastern
  * (0 Sunday … 6 Saturday). Edit here when CJ's schedule changes.

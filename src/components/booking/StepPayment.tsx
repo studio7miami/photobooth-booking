@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check } from "lucide-react";
 
-import { formatCents, REQUIRE_FULL_PAYMENT_WITHIN_DAYS } from "@/config/pricing";
+import { formatCents, formatInstallmentTotal, REQUIRE_FULL_PAYMENT_WITHIN_DAYS } from "@/config/pricing";
 import { getStripe } from "@/lib/stripe";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { offeringImageFocusClass } from "@/components/studio/StepOffering";
@@ -23,6 +23,8 @@ type Props = {
   eventStartTime?: string | undefined;
   imageUrl?: string | undefined;
   depositEligible?: boolean | undefined;
+  demo?: boolean | undefined;
+  remainingOnly?: boolean | undefined;
 };
 
 export function formatLongDate(date: string) {
@@ -53,10 +55,13 @@ export function StepPayment({
   eventStartTime,
   imageUrl,
   depositEligible = true,
+  demo = false,
+  remainingOnly = false,
 }: Props) {
   const requiresFull =
-    !depositEligible ||
-    (eventDate ? daysUntil(eventDate) <= REQUIRE_FULL_PAYMENT_WITHIN_DAYS : false);
+    !remainingOnly &&
+    (!depositEligible ||
+      (eventDate ? daysUntil(eventDate) <= REQUIRE_FULL_PAYMENT_WITHIN_DAYS : false));
   const [mode, setMode] = useState<PaymentMode>(requiresFull ? "full" : "deposit");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const payButtonRef = useRef<HTMLButtonElement>(null);
@@ -64,10 +69,10 @@ export function StepPayment({
   const effectiveMode: PaymentMode = requiresFull ? "full" : mode;
   const payFull = effectiveMode === "full";
   const dueLabel = useMemo(
-    () => formatLongDate(payFull ? todayEastern() : balanceDueDate),
-    [balanceDueDate, payFull],
+    () => formatLongDate(remainingOnly || !payFull ? balanceDueDate : todayEastern()),
+    [balanceDueDate, payFull, remainingOnly],
   );
-  const chargeCents = payFull ? totalCents : depositCents;
+  const chargeCents = remainingOnly ? balanceCents : payFull ? totalCents : depositCents;
 
   useEffect(() => {
     if (effectiveMode) void getStripe();
@@ -93,17 +98,19 @@ export function StepPayment({
 
         <p className="label-caps mt-8 text-[10px] text-muted-foreground">Payment summary</p>
         <EdSpecs className="mt-2">
-          <EdSpec label="Total" value={formatCents(totalCents)} strong={payFull} />
-          {payFull ? null : (
-            <>
-              <EdSpec label="Deposit (50%)" value={formatCents(depositCents)} strong />
-              <EdSpec label="Balance (50%)" value={formatCents(balanceCents)} />
-            </>
+          <EdSpec label="Total" value={formatCents(totalCents)} strong={payFull && !remainingOnly} />
+          {remainingOnly ? (
+            <EdSpec label="Remaining (50%)" value={formatInstallmentTotal(2, balanceCents)} />
+          ) : payFull ? null : (
+            <EdSpec label="Deposit (50%)" value={formatInstallmentTotal(1, depositCents)} />
           )}
-          <EdSpec label={payFull ? "Due" : "Balance due date"} value={dueLabel} />
+          <EdSpec
+            label={remainingOnly || !payFull ? "Balance due date" : "Due"}
+            value={dueLabel}
+          />
         </EdSpecs>
 
-        {requiresFull ? (
+        {remainingOnly ? null : requiresFull ? (
           <p className="mt-6 text-sm text-muted-foreground">
             {!depositEligible
               ? "This session is paid in full today."
@@ -132,11 +139,15 @@ export function StepPayment({
 
         <div className="mt-8">
           <EdPrimaryButton ref={payButtonRef} onClick={() => setCheckoutOpen(true)}>
-            {payFull ? "Pay in full" : "Pay deposit"} · {formatCents(chargeCents)}
+            {remainingOnly
+              ? `Pay remaining · ${formatCents(balanceCents)}`
+              : payFull
+                ? `Pay in full · ${formatCents(chargeCents)}`
+                : `Pay deposit · ${formatCents(chargeCents)}`}
           </EdPrimaryButton>
           <EdCaption>
             Secure checkout · your card is never stored
-            {payFull ? "" : " · Remaining balance can be paid from your confirmation."}
+            {remainingOnly || payFull ? "" : " · Remaining balance can be paid from your confirmation."}
           </EdCaption>
         </div>
       </EdCard>
@@ -145,14 +156,15 @@ export function StepPayment({
         open={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}
         bookingId={bookingId}
-        paymentMode={effectiveMode}
+        paymentMode={remainingOnly ? "balance" : effectiveMode}
         chargeCents={chargeCents}
         experienceName={experienceName}
         eventDate={eventDate}
         eventStartTime={eventStartTime}
-        {...(!payFull
+        {...(remainingOnly || !payFull
           ? { dueNote: `Balance ${formatCents(balanceCents)} · ${formatLongDate(balanceDueDate)}` }
           : {})}
+        demo={demo}
       />
     </div>
   );
@@ -164,6 +176,8 @@ export function OrderLine({
   eventStartTime,
   imageUrl,
   totalCents,
+  amountLabel,
+  hideAmount,
   done,
 }: {
   experienceName?: string | undefined;
@@ -171,6 +185,8 @@ export function OrderLine({
   eventStartTime?: string | undefined;
   imageUrl?: string | undefined;
   totalCents: number;
+  amountLabel?: string | undefined;
+  hideAmount?: boolean | undefined;
   done?: boolean | undefined;
 }) {
   const when = [
@@ -203,7 +219,11 @@ export function OrderLine({
         <p className="font-display text-lg leading-tight">{experienceName ?? "Studio 7 booking"}</p>
         {when ? <p className="mt-1 text-sm text-muted-foreground">{when}</p> : null}
       </div>
-      <span className="shrink-0 font-display text-lg tabular-nums">{formatCents(totalCents)}</span>
+      {hideAmount ? null : (
+        <span className="shrink-0 font-display text-base tabular-nums whitespace-nowrap sm:text-lg">
+          {amountLabel ?? formatCents(totalCents)}
+        </span>
+      )}
     </div>
   );
 }

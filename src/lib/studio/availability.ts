@@ -72,16 +72,13 @@ export type ActingSession = {
   date: string;
   startTime: string;
   durationMinutes: number;
-  capacity: number;
-  taken: number;
-  remaining: number;
 };
 
 export const PHOTO_SLOT_UNAVAILABLE_MESSAGE =
   "That time isn't available. Another studio session is too close, or the day is full.";
 
 export const CLASS_SEAT_UNAVAILABLE_MESSAGE =
-  "That class is full, or it isn't offered on that date. Pick another session.";
+  "That class isn't offered on that date. Pick another session.";
 
 export function defaultDurationMinutes(offering: StudioOfferingKey): number {
   return STUDIO_OFFERINGS[offering].baseMinutes;

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { IMAGES } from "@/assets/images";
 import { cn } from "@/lib/utils";
+import { MotionEnter } from "./motion";
 import { Stepper, type StepMeta } from "./Stepper";
 
 function pinWindowToTop(blurFocused = false) {
@@ -29,6 +30,8 @@ type StepShellProps = {
   footer?: ReactNode;
   onBack?: () => void;
   stepLabels?: StepMeta;
+  logoSrc?: string;
+  logoAlt?: string;
 };
 
 export function StepShell({
@@ -42,6 +45,8 @@ export function StepShell({
   footer,
   onBack,
   stepLabels,
+  logoSrc = IMAGES.logo,
+  logoAlt = "Studio 7 Miami",
 }: StepShellProps) {
   const spread = Boolean(media);
   const desktopChrome = Boolean(aside || spread);
@@ -70,35 +75,39 @@ export function StepShell({
   }, [step]);
 
   const heading = (
-    <div>
-      {title ? (
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-[1.35rem] leading-[1.1] text-balance outline-none sm:text-[1.75rem] sm:leading-[1.08]"
-        >
-          {title}
-        </h1>
-      ) : null}
-      {supporting ? (
-        <p className="mt-1.5 text-[0.95rem] text-muted-foreground sm:text-base">
-          {supporting}
-        </p>
-      ) : null}
-    </div>
+    <MotionEnter delayMs={spread ? 200 : 100}>
+      <div>
+        {title ? (
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-[1.15rem] leading-[1.15] text-nowrap outline-none sm:text-[1.75rem] sm:leading-[1.08] sm:text-balance"
+          >
+            {title}
+          </h1>
+        ) : null}
+        {supporting ? (
+          <p className="mt-1.5 text-[0.95rem] text-muted-foreground sm:text-base">
+            {supporting}
+          </p>
+        ) : null}
+      </div>
+    </MotionEnter>
   );
 
   return (
     <div className="flex min-h-svh flex-col [overflow-anchor:none]">
       <header className="sticky top-0 z-20 border-b border-border bg-background">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-2.5 sm:gap-6 sm:px-5 sm:py-3">
-          <img
-            src={IMAGES.logo}
-            alt="Studio 7 Miami"
-            className="h-11 w-auto shrink-0 object-contain sm:h-12 lg:h-14"
-          />
-          <Stepper step={step} {...(stepLabels ? { steps: stepLabels } : {})} />
-        </div>
+        <MotionEnter delayMs={0}>
+          <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-2.5 sm:gap-6 sm:px-5 sm:py-3">
+            <img
+              src={logoSrc}
+              alt={logoAlt}
+              className="h-11 w-auto shrink-0 bg-transparent object-contain sm:h-12 lg:h-14"
+            />
+            <Stepper step={step} {...(stepLabels ? { steps: stepLabels } : {})} />
+          </div>
+        </MotionEnter>
       </header>
 
       <main
@@ -114,29 +123,35 @@ export function StepShell({
         )}
       >
         {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="label-caps -ml-1 mb-4 inline-flex items-center gap-2 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" aria-hidden="true" />
-            Back
-          </button>
+          <MotionEnter delayMs={50}>
+            <button
+              type="button"
+              onClick={onBack}
+              className="label-caps -ml-1 mb-4 inline-flex items-center gap-2 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden="true" />
+              Back
+            </button>
+          </MotionEnter>
         ) : null}
 
         {spread ? (
           <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10">
-            <div className="overflow-hidden rounded-[24px] border border-border leading-[0]">
-              {media}
-            </div>
+            <MotionEnter delayMs={100} className="group relative overflow-hidden rounded-[24px] border border-border leading-[0]">
+              <div className="origin-center transition-transform duration-1000 ease-out motion-reduce:transition-none group-hover:scale-[1.03] motion-reduce:group-hover:scale-100">
+                {media}
+              </div>
+            </MotionEnter>
             <div className="flex min-w-0 flex-col lg:self-stretch">
               {heading}
-              <div className="mt-4 sm:mt-5">{children}</div>
+              <div className="mt-4 sm:mt-5">
+                <MotionEnter delayMs={300}>{children}</MotionEnter>
+              </div>
               {recap ? (
                 <>
                   <div className="hidden lg:block lg:min-h-6 lg:flex-1" aria-hidden="true" />
                   <div className="mt-6 hidden border-t border-border pt-5 lg:mt-0 lg:block">
-                    {recap}
+                    <MotionEnter delayMs={400}>{recap}</MotionEnter>
                   </div>
                 </>
               ) : null}
@@ -150,7 +165,9 @@ export function StepShell({
           >
             <div className="min-w-0">
               {heading}
-              <div className="mt-4 sm:mt-5">{children}</div>
+              <div className="mt-4 sm:mt-5">
+                {step === 1 ? children : <MotionEnter delayMs={200}>{children}</MotionEnter>}
+              </div>
             </div>
 
             {aside ? (

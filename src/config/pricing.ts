@@ -178,9 +178,64 @@ export function formatCents(cents: number): string {
   }).format(cents / 100);
 }
 
+function formatCentsFixed(cents: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
+/** `$125.00 1/2` after the deposit, `$125.00 2/2` for the remaining half. */
+export function formatInstallmentTotal(part: 1 | 2, amountCents: number): string {
+  return `${formatCentsFixed(amountCents)} ${part}/2`;
+}
+
+/** What the Total row shows: paid in full, first half, or second half. */
+export function formatPaidTotal(args: {
+  isDeposit: boolean;
+  paidCents: number;
+  balanceCents?: number | null;
+  part?: 1 | 2;
+}): string {
+  if (!args.isDeposit) return formatCents(args.paidCents);
+  const remaining = Math.max(0, args.balanceCents ?? 0);
+  const part = args.part ?? (remaining > 0 ? 1 : 2);
+  const amount = part === 2 ? remaining : args.paidCents;
+  return formatInstallmentTotal(part, amount);
+}
+
 /** Event date (YYYY-MM-DD) minus 7 days, as YYYY-MM-DD. */
 export function balanceDueDate(eventDate: string): string {
   const d = new Date(`${eventDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - BALANCE_DUE_DAYS_BEFORE_EVENT);
   return d.toISOString().slice(0, 10);
+}
+
+/** Canonical path for a photobooth experience (`/miamiclassic`). */
+export const PHOTOBOOTH_EXPERIENCE_SLUG: Record<ExperienceKey, string> = {
+  classic: "miamiclassic",
+  social: "miamisocial",
+  luxe: "miamiluxe",
+};
+
+const PHOTOBOOTH_EXPERIENCE_ALIASES: Record<string, ExperienceKey> = {
+  miamiclassic: "classic",
+  "miami-classic": "classic",
+  classic: "classic",
+  miamisocial: "social",
+  "miami-social": "social",
+  social: "social",
+  miamiluxe: "luxe",
+  "miami-luxe": "luxe",
+  luxe: "luxe",
+};
+
+export function parsePhotoboothExperienceParam(
+  raw: string | null | undefined,
+): ExperienceKey | null {
+  if (!raw) return null;
+  const slug = raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return PHOTOBOOTH_EXPERIENCE_ALIASES[slug] ?? PHOTOBOOTH_EXPERIENCE_ALIASES[raw.trim().toLowerCase()] ?? null;
 }

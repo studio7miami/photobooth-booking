@@ -23,6 +23,7 @@ const PREVIEW_DEPOSIT: NonNullable<Status> = {
   amount_paid_cents: 12500,
   balance_cents: 12500,
   balance_due_date: "2026-08-23",
+  balance_status: "pending",
   balance_link: null,
   paid_at: "2026-08-15T20:40:00.000-04:00",
   total_cents: 25000,
@@ -38,6 +39,7 @@ const PREVIEW_BOOKED: NonNullable<Status> = {
   amount_paid_cents: 25000,
   balance_cents: 0,
   balance_due_date: null,
+  balance_status: "paid",
   balance_link: null,
   paid_at: "2026-08-15T20:40:00.000-04:00",
   total_cents: 25000,
@@ -81,6 +83,7 @@ function modelFromStatus(status: NonNullable<Status>, settled: boolean): Confirm
     ...(status.event_date ? { eventDate: status.event_date } : {}),
     ...(status.event_start_time ? { eventStartTime: status.event_start_time } : {}),
     totalCents: status.total_cents ?? status.amount_paid_cents ?? 0,
+    paidCents: status.amount_paid_cents ?? status.total_cents ?? 0,
     paidOn: status.paid_at
       ? new Intl.DateTimeFormat("en-US", {
           dateStyle: "long",
